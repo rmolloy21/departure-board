@@ -627,6 +627,56 @@ function startTimer() {
   if (timer) clearInterval(timer);
   timer = setInterval(() => refreshAll(false), AUTO_REFRESH_SECONDS * 1000);
 }
+let activeFavouriteSlot = null;
+
+function openSearch(slot) {
+  activeFavouriteSlot = slot;
+  document.getElementById("searchModal").style.display = "block";
+  document.getElementById("stationSearchInput").value = "";
+  document.getElementById("searchResults").innerHTML = "";
+  document.getElementById("stationSearchInput").focus();
+}
+
+function closeSearch() {
+  document.getElementById("searchModal").style.display = "none";
+  activeFavouriteSlot = null;
+}
+
+async function searchStations(q) {
+  if (!q || q.length < 2) return;
+
+  const res = await fetch(`${API_BASE}/stations/search?q=${encodeURIComponent(q)}`);
+  if (!res.ok) {
+    document.getElementById("searchResults").innerHTML = "Search failed";
+    return;
+  }
+
+  const data = await res.json();
+  const results = data.matches || [];
+
+  if (results.length === 0) {
+    document.getElementById("searchResults").innerHTML = "<div>No results</div>";
+    return;
+  }
+
+  document.getElementById("searchResults").innerHTML = results.map(r => `
+    <div style="padding:10px; border-bottom:1px solid #333; cursor:pointer"
+         onclick="selectStation('${r.id}','${r.name.replace(/'/g, "\\'")}')">
+      <strong>${r.name}</strong><br>
+      <small>${r.modes.join(", ")}</small>
+    </div>
+  `).join("");
+}
+
+function selectStation(id, name) {
+  if (!activeFavouriteSlot) return;
+
+  localStorage.setItem(`fav_${activeFavouriteSlot}_id`, id);
+  localStorage.setItem(`fav_${activeFavouriteSlot}_name`, name);
+
+  closeSearch();
+  refreshAll(true);
+}
 
 // Initial paint
 refreshAll(false);
