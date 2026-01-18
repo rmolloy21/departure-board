@@ -632,5 +632,21 @@ function startTimer() {
 refreshAll(false);
 startTimer();
 </script>
+
+  <!-- Station Search Modal -->
+<div id="searchModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:999;">
+  <div style="background:#111; max-width:430px; margin:10vh auto; border-radius:12px; padding:14px;">
+    <div style="display:flex; gap:8px; margin-bottom:10px;">
+      <input
+        id="stationSearchInput"
+        placeholder="Search station (e.g. Woolwich)"
+        style="flex:1; padding:10px; border-radius:8px; border:none; font-size:16px;"
+      >
+      <button onclick="closeSearch()">✕</button>
+    </div>
+    <div id="searchResults"></div>
+  </div>
+</div>
+  
 </body>
 </html>
