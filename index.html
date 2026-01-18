@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>London Departure Board — Prototype</title>
+  <style>
+    :root{
+      --bg: #0b0d10;
+      --card: #12161c;
+      --muted: #9aa4b2;
+      --text: #e7eef8;
+      --accent: #ffd400; /* departure-board yellow */
+      --line: #2a3240;
+      --danger: #ff6b6b;
+      --ok: #4ade80;
+    }
+    @media (prefers-color-scheme: light) {
+      :root{
+        --bg: #f6f7fb;
+        --card: #ffffff;
+        --muted: #556273;
+        --text: #0b1220;
+        --line: #e6eaf0;
+        --accent: #111827;
+      }
+    }
+
+    body{
+      margin:0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .phone{
+      max-width: 430px;
+      margin: 0 auto;
+      padding: 14px 14px 28px;
+    }
+    header{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom: 12px;
+    }
+    .title{
+      line-height:1.1;
+    }
+    .title h1{
+      font-size: 18px;
+      margin: 4px 0 2px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+    }
+    .title .sub{
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .controls{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      align-items:flex-end;
+    }
+    .row{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    select, button{
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-size: 13px;
+      outline:none;
+    }
+    button{
+      cursor:pointer;
+    }
+    button.primary{
+      border-color: transparent;
+      background: var(--accent);
+      color: #0b0d10;
+      font-weight: 800;
+    }
+    .pill{
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      background: rgba(255,255,255,0.02);
+    }
+    .dot{
+      width:8px; height:8px; border-radius:999px; background: var(--muted);
+      display:inline-block;
+    }
+
+    .boards{
+      display:flex;
+      flex-direction:column;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .board{
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow:hidden;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+    }
+    .boardHeader{
+      padding: 12px 12px 10px;
+      border-bottom: 1px solid var(--line);
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:flex-start;
+    }
+    .boardHeader .left{
+      min-width: 0;
+    }
+    .boardHeader .name{
+      font-weight: 900;
+      font-size: 14px;
+      letter-spacing: 0.2px;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+    .boardHeader .meta{
+      font-size: 12px;
+      color: var(--muted);
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .boardHeader .right{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      align-items:flex-end;
+    }
+    .smallBtn{
+      font-size: 12px;
+      padding: 7px 9px;
+      border-radius: 10px;
+    }
+
+    .table{
+      width:100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .table td{
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    .table tr:last-child td{
+      border-bottom:none;
+    }
+    .dest{
+      font-weight: 800;
+      margin-bottom: 2px;
+    }
+    .subline{
+      color: var(--muted);
+      font-size: 12px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .time{
+      text-align:right;
+      font-variant-numeric: tabular-nums;
+      white-space:nowrap;
+      font-weight: 900;
+      width: 1%;
+    }
+    .hint{
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height:1.35;
+    }
+    .warn{
+      color: var(--danger);
+      font-weight: 700;
+    }
+    .ok{
+      color: var(--ok);
+      font-weight: 700;
+    }
+    .footer{
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 11.5px;
+      line-height:1.35;
+    }
+    a{ color: inherit; }
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <header>
+      <div class="title">
+        <h1>London Departure Board</h1>
+        <div class="sub" id="statusText">Idle</div>
+      </div>
+      <div class="controls">
+        <div class="row">
+          <select id="lineFilter">
+            <option value="all">All lines</option>
+          </select>
+          <select id="displayMode">
+            <option value="countdown">Live (mins)</option>
+            <option value="clock">Snapshot (HH:MM)</option>
+          </select>
+        </div>
+        <div class="row">
+          <button class="smallBtn" id="refreshBtn">Refresh</button>
+          <button class="primary smallBtn" id="settingsBtn">Favourites</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="pill">
+      <span class="dot" id="pulseDot"></span>
+      <span>Auto-refresh: <strong id="refreshEvery">25s</strong> (while page open)</span>
+    </div>
+
+    <div class="boards">
+      <section class="board" id="boardFav1">
+        <div class="boardHeader">
+          <div class="left">
+            <div class="name" id="fav1Name">Favourite #1</div>
+            <div class="meta"><span id="fav1Meta">Not set</span></div>
+          </div>
+          <div class="right">
+            <button class="smallBtn" data-pick="fav1">Set</button>
+          </div>
+        </div>
+        <table class="table" id="fav1Table"></table>
+      </section>
+
+      <section class="board" id="boardFav2">
+        <div class="boardHeader">
+          <div class="left">
+            <div class="name" id="fav2Name">Favourite #2</div>
+            <div class="meta"><span id="fav2Meta">Not set</span></div>
+          </div>
+          <div class="right">
+            <button class="smallBtn" data-pick="fav2">Set</button>
+          </div>
+        </div>
+        <table class="table" id="fav2Table"></table>
+      </section>
+
+      <section class="board" id="boardNear">
+        <div class="boardHeader">
+          <div class="left">
+            <div class="name" id="nearName">Nearest station</div>
+            <div class="meta">
+              <span id="nearMeta">Needs location permission</span>
+            </div>
+          </div>
+          <div class="right">
+            <button class="smallBtn" id="locBtn">Use location</button>
+          </div>
+        </div>
+        <table class="table" id="nearTable"></table>
+      </section>
+    </div>
+
+    <div class="hint">
+      Tip: “Snapshot (HH:MM)” simulates your widget approach: show <strong>clock times</strong> instead of “2 mins”.
+    </div>
+
+    <div class="footer">
+      Not affiliated with or endorsed by Transport for London. Data from TfL.
+    </div>
+  </div>
+
+<script>
+/**
+ * Prototype notes:
+ * - Uses TfL public StopPoint Arrivals endpoint by default.
+ * - If you want to use your Cloudflare Worker, set API_BASE to your Worker URL and adjust fetchArrivals().
+ */
+
+// ========== CONFIG ==========
+const API_BASE = "https://api.tfl.gov.uk"; // replace with your Worker base if you want
+const AUTO_REFRESH_SECONDS = 25;
+const MAX_ROWS = 4;
+
+// Minimal station list for nearest-station demo.
+// Add more (name, stopPointId, lat, lon). This is only used for “nearest”.
+const STATIONS = [
+  { name: "Woolwich (Elizabeth line)", id: "910GWOLWICHARS", lat: 51.4919, lon: 0.0712 },
+  { name: "Canary Wharf (Elizabeth line)", id: "910GCANARYWHF", lat: 51.5036, lon: -0.0199 },
+  { name: "Liverpool Street", id: "910GLIVST", lat: 51.5178, lon: -0.0824 },
+  { name: "Paddington", id: "910GPADTON", lat: 51.5154, lon: -0.1755 },
+  { name: "Waterloo", id: "910GWATRLMN", lat: 51.5033, lon: -0.1147 },
+  { name: "London Bridge", id: "910GLNDBRDG", lat: 51.5054, lon: -0.0865 },
+];
+
+// Favourites stored as StopPoint IDs.
+const STORAGE_KEYS = {
+  fav1: "ldb_fav1_stopPointId",
+  fav2: "ldb_fav2_stopPointId"
+};
+
+// ========== STATE ==========
+let nearestStop = null;
+let timer = null;
+let lastUpdated = null;
+
+// ========== ELEMENTS ==========
+const statusText = document.getElementById("statusText");
+const pulseDot = document.getElementById("pulseDot");
+const refreshBtn = document.getElementById("refreshBtn");
+const settingsBtn = document.getElementById("settingsBtn");
+const locBtn = document.getElementById("locBtn");
+const lineFilter = document.getElementById("lineFilter");
+const displayMode = document.getElementById("displayMode");
+document.getElementById("refreshEvery").textContent = `${AUTO_REFRESH_SECONDS}s`;
+
+// Board elements
+const els = {
+  fav1Name: document.getElementById("fav1Name"),
+  fav1Meta: document.getElementById("fav1Meta"),
+  fav1Table: document.getElementById("fav1Table"),
+  fav2Name: document.getElementById("fav2Name"),
+  fav2Meta: document.getElementById("fav2Meta"),
+  fav2Table: document.getElementById("fav2Table"),
+  nearName: document.getElementById("nearName"),
+  nearMeta: document.getElementById("nearMeta"),
+  nearTable: document.getElementById("nearTable"),
+};
+
+for (const btn of document.querySelectorAll("button[data-pick]")) {
+  btn.addEventListener("click", () => pickFavourite(btn.dataset.pick));
+}
+
+refreshBtn.addEventListener("click", () => refreshAll(true));
+settingsBtn.addEventListener("click", () => openFavouritesQuickPick());
+locBtn.addEventListener("click", () => setNearestFromLocation());
+
+// ========== HELPERS ==========
+function setStatus(msg) {
+  statusText.textContent = msg;
+}
+function pulse(active) {
+  pulseDot.style.background = active ? "var(--ok)" : "var(--muted)";
+}
+function fmtClock(dt) {
+  const d = new Date(dt);
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mm = String(d.getMinutes()).padStart(2,'0');
+  return `${hh}:${mm}`;
+}
+function minutesFromNow(dt) {
+  const ms = new Date(dt).getTime() - Date.now();
+  const mins = Math.round(ms / 60000);
+  return mins <= 0 ? "Due" : `${mins} min`;
+}
+function haversineMeters(aLat, aLon, bLat, bLon) {
+  const R = 6371000;
+  const toRad = x => x * Math.PI / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLon = toRad(bLon - aLon);
+  const lat1 = toRad(aLat);
+  const lat2 = toRad(bLat);
+  const s = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
+function getFav(which) {
+  return localStorage.getItem(STORAGE_KEYS[which]) || null;
+}
+function setFav(which, stopPointId) {
+  localStorage.setItem(STORAGE_KEYS[which], stopPointId);
+}
+
+function stationById(id) {
+  return STATIONS.find(s => s.id === id) || { name: id, id };
+}
+
+// ========== API ==========
+async function fetchArrivals(stopPointId) {
+  // TfL StopPoint arrivals:
+  // GET https://api.tfl.gov.uk/StopPoint/{id}/Arrivals
+  // If you switch to your Worker, adjust this URL and the JSON parsing below if needed.
+  const url = `${API_BASE}/StopPoint/${encodeURIComponent(stopPointId)}/Arrivals`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+
+  // Normalise + sort by expectedArrival
+  // Each item typically contains: lineId, lineName, destinationName, expectedArrival, platformName, towards
+  data.sort((a,b) => new Date(a.expectedArrival) - new Date(b.expectedArrival));
+  return data;
+}
+
+function getLineKey(item) {
+  // Prefer lineId; fall back to lineName.
+  return (item.lineId || item.lineName || "unknown").toLowerCase();
+}
+
+// Populate filter dropdown based on seen lines (from all boards)
+function buildLineFilterOptions(allItems) {
+  const seen = new Map(); // key -> display
+  for (const it of allItems) {
+    const key = getLineKey(it);
+    const display = it.lineName || it.lineId || "Unknown";
+    if (!seen.has(key)) seen.set(key, display);
+  }
+
+  const current = lineFilter.value || "all";
+  // Keep All + rebuild others
+  lineFilter.innerHTML = `<option value="all">All lines</option>`;
+  [...seen.entries()]
+    .sort((a,b) => a[1].localeCompare(b[1]))
+    .forEach(([key, display]) => {
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = display;
+      lineFilter.appendChild(opt);
+    });
+
+  // restore selection if possible
+  const exists = [...lineFilter.options].some(o => o.value === current);
+  lineFilter.value = exists ? current : "all";
+}
+
+// ========== RENDER ==========
+function renderTable(tableEl, items) {
+  tableEl.innerHTML = "";
+  if (!items || items.length === 0) {
+    tableEl.innerHTML = `<tr><td><span class="warn">No departures found.</span><div class="subline">Try “All lines” or refresh.</div></td><td class="time">—</td></tr>`;
+    return;
+  }
+
+  const mode = displayMode.value; // countdown | clock
+
+  for (const it of items.slice(0, MAX_ROWS)) {
+    const dest = it.destinationName || it.towards || "Unknown destination";
+    const lineName = it.lineName || it.lineId || "Unknown line";
+    const platform = it.platformName ? `Plat: ${it.platformName}` : null;
+
+    const timeText = (mode === "clock")
+      ? fmtClock(it.expectedArrival)
+      : minutesFromNow(it.expectedArrival);
+
+    const subBits = [lineName];
+    if (platform) subBits.push(platform);
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>
+        <div class="dest">${escapeHtml(dest)}</div>
+        <div class="subline">${subBits.map(escapeHtml).join(" · ")}</div>
+      </td>
+      <td class="time">${escapeHtml(timeText)}</td>
+    `;
+    tableEl.appendChild(tr);
+  }
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+// ========== FAVOURITE PICKERS ==========
+async function pickFavourite(which) {
+  // Simple prompt-based picker for prototype speed.
+  // Enter a StopPoint ID or pick from the built-in list.
+  const list = STATIONS.map((s,i)=>`${i+1}. ${s.name}`).join("\n");
+  const input = prompt(
+    `Set ${which.toUpperCase()} — enter a StopPoint ID, or choose a number:\n\n${list}\n\nExample ID: 910GWOLWICHARS`
+  );
+  if (!input) return;
+
+  const n = Number(input);
+  if (Number.isFinite(n) && n >= 1 && n <= STATIONS.length) {
+    setFav(which, STATIONS[n-1].id);
+  } else {
+    setFav(which, input.trim());
+  }
+  await refreshAll(true);
+}
+
+function openFavouritesQuickPick() {
+  alert(
+    "Prototype tip:\n\nUse the Set buttons on each board header to choose favourites.\n\nLater we can replace this with a proper search UI."
+  );
+}
+
+// ========== LOCATION ==========
+function setNearestFromLocation() {
+  if (!navigator.geolocation) {
+    els.nearMeta.textContent = "Geolocation not supported";
+    return;
+  }
+  setStatus("Getting location…");
+  pulse(true);
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      let best = null;
+      let bestD = Infinity;
+      for (const s of STATIONS) {
+        const d = haversineMeters(latitude, longitude, s.lat, s.lon);
+        if (d < bestD) { bestD = d; best = s; }
+      }
+      nearestStop = best;
+      els.nearName.textContent = best.name;
+      els.nearMeta.textContent = `~${Math.round(bestD)}m away`;
+      await refreshAll(true);
+    },
+    (err) => {
+      els.nearMeta.textContent = `Location denied (${err.code})`;
+      setStatus("Idle");
+      pulse(false);
+    },
+    { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+  );
+}
+
+// ========== MAIN REFRESH ==========
+async function refreshAll(manual=false) {
+  const fav1 = getFav("fav1");
+  const fav2 = getFav("fav2");
+
+  // Update headers
+  if (fav1) {
+    const s = stationById(fav1);
+    els.fav1Name.textContent = s.name;
+    els.fav1Meta.textContent = s.id;
+  } else {
+    els.fav1Name.textContent = "Favourite #1";
+    els.fav1Meta.textContent = "Not set";
+    els.fav1Table.innerHTML = `<tr><td>Tap <strong>Set</strong> to choose a station.</td><td class="time">—</td></tr>`;
+  }
+
+  if (fav2) {
+    const s = stationById(fav2);
+    els.fav2Name.textContent = s.name;
+    els.fav2Meta.textContent = s.id;
+  } else {
+    els.fav2Name.textContent = "Favourite #2";
+    els.fav2Meta.textContent = "Not set";
+    els.fav2Table.innerHTML = `<tr><td>Tap <strong>Set</strong> to choose a station.</td><td class="time">—</td></tr>`;
+  }
+
+  if (!nearestStop) {
+    els.nearName.textContent = "Nearest station";
+    // keep nearMeta as-is
+    els.nearTable.innerHTML = `<tr><td>Tap <strong>Use location</strong> to set nearest station.</td><td class="time">—</td></tr>`;
+  }
+
+  const ids = [
+    { key: "fav1", id: fav1, table: els.fav1Table },
+    { key: "fav2", id: fav2, table: els.fav2Table },
+    { key: "near", id: nearestStop?.id || null, table: els.nearTable },
+  ].filter(x => x.id);
+
+  if (ids.length === 0) {
+    setStatus("Idle");
+    pulse(false);
+    return;
+  }
+
+  setStatus(manual ? "Refreshing…" : "Auto-refreshing…");
+  pulse(true);
+
+  try {
+    const results = await Promise.all(ids.map(x => fetchArrivals(x.id)));
+    // Build filter options from all arrivals combined
+    const all = results.flat();
+    buildLineFilterOptions(all);
+
+    const selected = lineFilter.value;
+    for (let i=0; i<ids.length; i++) {
+      let items = results[i];
+      if (selected !== "all") {
+        items = items.filter(it => getLineKey(it) === selected);
+      }
+      renderTable(ids[i].table, items);
+    }
+
+    lastUpdated = new Date();
+    setStatus(`Updated ${fmtClock(lastUpdated)} · mode: ${displayMode.value}`);
+  } catch (e) {
+    setStatus("Update failed");
+    // show a friendly error row in each active table
+    for (const x of ids) {
+      x.table.innerHTML = `<tr><td><span class="warn">Couldn’t load departures.</span><div class="subline">${escapeHtml(e.message || e)}</div></td><td class="time">—</td></tr>`;
+    }
+  } finally {
+    pulse(false);
+  }
+}
+
+// React to filter/mode changes
+lineFilter.addEventListener("change", () => refreshAll(true));
+displayMode.addEventListener("change", () => refreshAll(true));
+
+// Start auto refresh
+function startTimer() {
+  if (timer) clearInterval(timer);
+  timer = setInterval(() => refreshAll(false), AUTO_REFRESH_SECONDS * 1000);
+}
+
+// Initial paint
+refreshAll(false);
+startTimer();
+</script>
+</body>
+</html>
