@@ -399,16 +399,12 @@ function stationById(id) {
 
 // ========== API ==========
 async function fetchArrivals(stopPointId) {
-  // TfL StopPoint arrivals:
-  // GET https://api.tfl.gov.uk/StopPoint/{id}/Arrivals
-  // If you switch to your Worker, adjust this URL and the JSON parsing below if needed.
-  const url = `${API_BASE}/StopPoint/${encodeURIComponent(stopPointId)}/Arrivals`;
+  const url = `${API_BASE}/arrivals?stopPointId=${encodeURIComponent(stopPointId)}`;
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
 
-  // Normalise + sort by expectedArrival
-  // Each item typically contains: lineId, lineName, destinationName, expectedArrival, platformName, towards
+  const payload = await res.json();
+  const data = Array.isArray(payload.arrivals) ? payload.arrivals : [];
   data.sort((a,b) => new Date(a.expectedArrival) - new Date(b.expectedArrival));
   return data;
 }
