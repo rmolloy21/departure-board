@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>London Departure Board — Prototype</title>
+
   <style>
     :root{
       --bg: #0b0d10;
@@ -44,9 +45,7 @@
       gap:12px;
       margin-bottom: 12px;
     }
-    .title{
-      line-height:1.1;
-    }
+    .title{ line-height:1.1; }
     .title h1{
       font-size: 18px;
       margin: 4px 0 2px;
@@ -78,9 +77,7 @@
       font-size: 13px;
       outline:none;
     }
-    button{
-      cursor:pointer;
-    }
+    button{ cursor:pointer; }
     button.primary{
       border-color: transparent;
       background: var(--accent);
@@ -116,6 +113,8 @@
       overflow:hidden;
       box-shadow: 0 6px 18px rgba(0,0,0,0.18);
     }
+
+    /* ===== Board header styling (dark navy tint) ===== */
     .boardHeader{
       padding: 12px 12px 10px;
       border-bottom: 1px solid var(--line);
@@ -123,10 +122,15 @@
       justify-content:space-between;
       gap:10px;
       align-items:flex-start;
+      background: rgba(9, 18, 38, 0.65);
     }
-    .boardHeader .left{
-      min-width: 0;
+    @media (prefers-color-scheme: light) {
+      .boardHeader{
+        background: rgba(240, 243, 248, 1);
+      }
     }
+
+    .boardHeader .left{ min-width: 0; }
     .boardHeader .name{
       font-weight: 900;
       font-size: 14px;
@@ -143,12 +147,14 @@
       gap:10px;
       flex-wrap:wrap;
       align-items:center;
+      opacity: 0.95;
     }
     .boardHeader .right{
       display:flex;
       flex-direction:column;
       gap:8px;
       align-items:flex-end;
+      min-width: 140px;
     }
     .smallBtn{
       font-size: 12px;
@@ -156,26 +162,31 @@
       border-radius: 10px;
     }
 
+    /* ===== Compact per-board line dropdown ===== */
+    .lineSelect{
+      width: 100%;
+      font-size: 12px;
+      padding: 7px 8px;
+      border-radius: 10px;
+    }
+
+    /* ===== More compact departure rows ===== */
     .table{
       width:100%;
       border-collapse: collapse;
-      font-size: 13px;
+      font-size: 12.5px;
     }
     .table td{
-      padding: 10px 12px;
+      padding: 8px 12px;
       border-bottom: 1px solid var(--line);
       vertical-align: top;
     }
-    .table tr:last-child td{
-      border-bottom:none;
-    }
-    .dest{
-      font-weight: 800;
-      margin-bottom: 2px;
-    }
+    .table tr:last-child td{ border-bottom:none; }
+
+    .dest{ font-weight: 800; margin-bottom: 1px; }
     .subline{
       color: var(--muted);
-      font-size: 12px;
+      font-size: 11px;
       display:flex;
       gap:8px;
       flex-wrap:wrap;
@@ -194,14 +205,8 @@
       font-size: 12px;
       line-height:1.35;
     }
-    .warn{
-      color: var(--danger);
-      font-weight: 700;
-    }
-    .ok{
-      color: var(--ok);
-      font-weight: 700;
-    }
+    .warn{ color: var(--danger); font-weight: 700; }
+    .ok{ color: var(--ok); font-weight: 700; }
     .footer{
       margin-top: 14px;
       color: var(--muted);
@@ -209,8 +214,68 @@
       line-height:1.35;
     }
     a{ color: inherit; }
+
+    /* ===== Station search modal ===== */
+    .modalBackdrop{
+      display:none;
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,0.6);
+      z-index:999;
+      padding: 10px;
+    }
+    .modal{
+      background: #111;
+      max-width: 430px;
+      margin: 10vh auto;
+      border-radius: 12px;
+      padding: 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    @media (prefers-color-scheme: light) {
+      .modal{
+        background: #fff;
+        border: 1px solid rgba(0,0,0,0.08);
+      }
+    }
+    .modalRow{
+      display:flex;
+      gap:8px;
+      margin-bottom:10px;
+      align-items:center;
+    }
+    .modalInput{
+      flex:1;
+      padding:10px;
+      border-radius:8px;
+      border:1px solid rgba(255,255,255,0.12);
+      font-size:16px;
+      outline:none;
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+    }
+    @media (prefers-color-scheme: light) {
+      .modalInput{
+        background: #f6f7fb;
+        border: 1px solid rgba(0,0,0,0.1);
+        color: #0b1220;
+      }
+    }
+    .resultItem{
+      padding:10px;
+      border-bottom:1px solid rgba(255,255,255,0.12);
+      cursor:pointer;
+    }
+    @media (prefers-color-scheme: light) {
+      .resultItem{
+        border-bottom:1px solid rgba(0,0,0,0.08);
+      }
+    }
+    .resultItem:last-child{ border-bottom:none; }
+    .resultItem small{ color: var(--muted); }
   </style>
 </head>
+
 <body>
   <div class="phone">
     <header>
@@ -220,9 +285,6 @@
       </div>
       <div class="controls">
         <div class="row">
-          <select id="lineFilter">
-            <option value="all">All lines</option>
-          </select>
           <select id="displayMode">
             <option value="countdown">Live (mins)</option>
             <option value="clock">Snapshot (HH:MM)</option>
@@ -248,6 +310,9 @@
             <div class="meta"><span id="fav1Meta">Not set</span></div>
           </div>
           <div class="right">
+            <select class="lineSelect" id="fav1Line">
+              <option value="all">All lines</option>
+            </select>
             <button class="smallBtn" data-pick="fav1">Set</button>
           </div>
         </div>
@@ -261,6 +326,9 @@
             <div class="meta"><span id="fav2Meta">Not set</span></div>
           </div>
           <div class="right">
+            <select class="lineSelect" id="fav2Line">
+              <option value="all">All lines</option>
+            </select>
             <button class="smallBtn" data-pick="fav2">Set</button>
           </div>
         </div>
@@ -276,6 +344,9 @@
             </div>
           </div>
           <div class="right">
+            <select class="lineSelect" id="nearLine">
+              <option value="all">All lines</option>
+            </select>
             <button class="smallBtn" id="locBtn">Use location</button>
           </div>
         </div>
@@ -292,20 +363,38 @@
     </div>
   </div>
 
+  <!-- Station Search Modal -->
+  <div id="searchModal" class="modalBackdrop">
+    <div class="modal">
+      <div class="modalRow">
+        <input
+          id="stationSearchInput"
+          class="modalInput"
+          placeholder="Search station (e.g. Woolwich)"
+          oninput="debouncedStationSearch(this.value)"
+        >
+        <button class="smallBtn" onclick="closeSearch()">✕</button>
+      </div>
+      <div id="searchResults"></div>
+    </div>
+  </div>
+
 <script>
 /**
- * Prototype notes:
- * - Uses TfL public StopPoint Arrivals endpoint by default.
- * - If you want to use your Cloudflare Worker, set API_BASE to your Worker URL and adjust fetchArrivals().
+ * London Departure Board Prototype
+ * - Frontend on GitHub Pages
+ * - Backend via Cloudflare Worker:
+ *   GET /stations/search?q=...
+ *   GET /arrivals?stopPointId=...
  */
 
 // ========== CONFIG ==========
-const API_BASE = "https://departure-board-api.ryancmolloy.workers.dev"; // replace with your Worker base if you want
+const API_BASE = "https://departure-board-api.ryancmolloy.workers.dev"; // no trailing slash
 const AUTO_REFRESH_SECONDS = 25;
 const MAX_ROWS = 4;
 
-// Minimal station list for nearest-station demo.
-// Add more (name, stopPointId, lat, lon). This is only used for “nearest”.
+// Minimal station list used ONLY for nearest-station demo.
+// (Favourites use live search via API.)
 const STATIONS = [
   { name: "Woolwich (Elizabeth line)", id: "910GWOLWXR", lat: 51.4919, lon: 0.0712 },
   { name: "Canary Wharf (Elizabeth line)", id: "910GCANWHRF", lat: 51.5036, lon: -0.0199 },
@@ -315,10 +404,15 @@ const STATIONS = [
   { name: "London Bridge", id: "910GLNDBRDG", lat: 51.5054, lon: -0.0865 },
 ];
 
-// Favourites stored as StopPoint IDs.
 const STORAGE_KEYS = {
-  fav1: "ldb_fav1_stopPointId",
-  fav2: "ldb_fav2_stopPointId"
+  fav1Id: "ldb_fav1_stopPointId",
+  fav1Name: "ldb_fav1_name",
+  fav2Id: "ldb_fav2_stopPointId",
+  fav2Name: "ldb_fav2_name",
+
+  fav1Line: "ldb_fav1_line",
+  fav2Line: "ldb_fav2_line",
+  nearLine: "ldb_near_line"
 };
 
 // ========== STATE ==========
@@ -332,11 +426,9 @@ const pulseDot = document.getElementById("pulseDot");
 const refreshBtn = document.getElementById("refreshBtn");
 const settingsBtn = document.getElementById("settingsBtn");
 const locBtn = document.getElementById("locBtn");
-const lineFilter = document.getElementById("lineFilter");
 const displayMode = document.getElementById("displayMode");
 document.getElementById("refreshEvery").textContent = `${AUTO_REFRESH_SECONDS}s`;
 
-// Board elements
 const els = {
   fav1Name: document.getElementById("fav1Name"),
   fav1Meta: document.getElementById("fav1Meta"),
@@ -349,21 +441,45 @@ const els = {
   nearTable: document.getElementById("nearTable"),
 };
 
+const boardLineSelect = {
+  fav1: document.getElementById("fav1Line"),
+  fav2: document.getElementById("fav2Line"),
+  near: document.getElementById("nearLine"),
+};
+
+// Restore saved line selections
+boardLineSelect.fav1.value = localStorage.getItem(STORAGE_KEYS.fav1Line) || "all";
+boardLineSelect.fav2.value = localStorage.getItem(STORAGE_KEYS.fav2Line) || "all";
+boardLineSelect.near.value = localStorage.getItem(STORAGE_KEYS.nearLine) || "all";
+
+// Save selection + refresh
+boardLineSelect.fav1.addEventListener("change", () => {
+  localStorage.setItem(STORAGE_KEYS.fav1Line, boardLineSelect.fav1.value);
+  refreshAll(true);
+});
+boardLineSelect.fav2.addEventListener("change", () => {
+  localStorage.setItem(STORAGE_KEYS.fav2Line, boardLineSelect.fav2.value);
+  refreshAll(true);
+});
+boardLineSelect.near.addEventListener("change", () => {
+  localStorage.setItem(STORAGE_KEYS.nearLine, boardLineSelect.near.value);
+  refreshAll(true);
+});
+
+// Set buttons open station search
 for (const btn of document.querySelectorAll("button[data-pick]")) {
-  btn.addEventListener("click", () => pickFavourite(btn.dataset.pick));
+  btn.addEventListener("click", () => openSearch(btn.dataset.pick));
 }
 
 refreshBtn.addEventListener("click", () => refreshAll(true));
-settingsBtn.addEventListener("click", () => openFavouritesQuickPick());
+settingsBtn.addEventListener("click", () => openFavouritesHelp());
 locBtn.addEventListener("click", () => setNearestFromLocation());
+displayMode.addEventListener("change", () => refreshAll(true));
 
 // ========== HELPERS ==========
-function setStatus(msg) {
-  statusText.textContent = msg;
-}
-function pulse(active) {
-  pulseDot.style.background = active ? "var(--ok)" : "var(--muted)";
-}
+function setStatus(msg) { statusText.textContent = msg; }
+function pulse(active) { pulseDot.style.background = active ? "var(--ok)" : "var(--muted)"; }
+
 function fmtClock(dt) {
   const d = new Date(dt);
   const hh = String(d.getHours()).padStart(2,'0');
@@ -386,11 +502,24 @@ function haversineMeters(aLat, aLon, bLat, bLon) {
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
-function getFav(which) {
-  return localStorage.getItem(STORAGE_KEYS[which]) || null;
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 }
-function setFav(which, stopPointId) {
-  localStorage.setItem(STORAGE_KEYS[which], stopPointId);
+
+function getFavId(which) {
+  return localStorage.getItem(STORAGE_KEYS[`${which}Id`]) || null;
+}
+function getFavName(which) {
+  return localStorage.getItem(STORAGE_KEYS[`${which}Name`]) || null;
+}
+function setFav(which, stopPointId, stationName) {
+  localStorage.setItem(STORAGE_KEYS[`${which}Id`], stopPointId);
+  localStorage.setItem(STORAGE_KEYS[`${which}Name`], stationName || stopPointId);
 }
 
 function stationById(id) {
@@ -410,34 +539,33 @@ async function fetchArrivals(stopPointId) {
 }
 
 function getLineKey(item) {
-  // Prefer lineId; fall back to lineName.
   return (item.lineId || item.lineName || "unknown").toLowerCase();
 }
 
-// Populate filter dropdown based on seen lines (from all boards)
-function buildLineFilterOptions(allItems) {
-  const seen = new Map(); // key -> display
-  for (const it of allItems) {
+function buildBoardLineOptions(selectEl, arrivals) {
+  if (!selectEl) return;
+
+  const current = selectEl.value || "all";
+  const seen = new Map();
+
+  for (const it of arrivals || []) {
     const key = getLineKey(it);
     const display = it.lineName || it.lineId || "Unknown";
     if (!seen.has(key)) seen.set(key, display);
   }
 
-  const current = lineFilter.value || "all";
-  // Keep All + rebuild others
-  lineFilter.innerHTML = `<option value="all">All lines</option>`;
+  selectEl.innerHTML = `<option value="all">All lines</option>`;
   [...seen.entries()]
     .sort((a,b) => a[1].localeCompare(b[1]))
     .forEach(([key, display]) => {
       const opt = document.createElement("option");
       opt.value = key;
       opt.textContent = display;
-      lineFilter.appendChild(opt);
+      selectEl.appendChild(opt);
     });
 
-  // restore selection if possible
-  const exists = [...lineFilter.options].some(o => o.value === current);
-  lineFilter.value = exists ? current : "all";
+  const exists = [...selectEl.options].some(o => o.value === current);
+  selectEl.value = exists ? current : "all";
 }
 
 // ========== RENDER ==========
@@ -455,10 +583,7 @@ function renderTable(tableEl, items) {
     const lineName = it.lineName || it.lineId || "Unknown line";
     const platform = it.platformName ? `Plat: ${it.platformName}` : null;
 
-    const timeText = (mode === "clock")
-      ? fmtClock(it.expectedArrival)
-      : minutesFromNow(it.expectedArrival);
-
+    const timeText = (mode === "clock") ? fmtClock(it.expectedArrival) : minutesFromNow(it.expectedArrival);
     const subBits = [lineName];
     if (platform) subBits.push(platform);
 
@@ -474,38 +599,66 @@ function renderTable(tableEl, items) {
   }
 }
 
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
+// ========== STATION SEARCH MODAL ==========
+let activeFavouriteSlot = null;
+let searchTimer = null;
+
+function openSearch(slot) {
+  activeFavouriteSlot = slot;
+  document.getElementById("searchModal").style.display = "block";
+  document.getElementById("stationSearchInput").value = "";
+  document.getElementById("searchResults").innerHTML = "";
+  document.getElementById("stationSearchInput").focus();
 }
 
-// ========== FAVOURITE PICKERS ==========
-async function pickFavourite(which) {
-  // Simple prompt-based picker for prototype speed.
-  // Enter a StopPoint ID or pick from the built-in list.
-  const list = STATIONS.map((s,i)=>`${i+1}. ${s.name}`).join("\n");
-  const input = prompt(
-    `Set ${which.toUpperCase()} — enter a StopPoint ID, or choose a number:\n\n${list}\n\nExample ID: 910GWOLWICHARS`
-  );
-  if (!input) return;
+function closeSearch() {
+  document.getElementById("searchModal").style.display = "none";
+  activeFavouriteSlot = null;
+}
 
-  const n = Number(input);
-  if (Number.isFinite(n) && n >= 1 && n <= STATIONS.length) {
-    setFav(which, STATIONS[n-1].id);
-  } else {
-    setFav(which, input.trim());
+function debouncedStationSearch(q) {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => searchStations(q), 250);
+}
+
+async function searchStations(q) {
+  q = (q || "").trim();
+  if (q.length < 2) {
+    document.getElementById("searchResults").innerHTML = "";
+    return;
   }
-  await refreshAll(true);
+
+  const res = await fetch(`${API_BASE}/stations/search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
+  if (!res.ok) {
+    document.getElementById("searchResults").innerHTML = `<div class="warn">Search failed (HTTP ${res.status})</div>`;
+    return;
+  }
+
+  const data = await res.json();
+  const results = Array.isArray(data.matches) ? data.matches : [];
+
+  if (results.length === 0) {
+    document.getElementById("searchResults").innerHTML = `<div class="hint">No results.</div>`;
+    return;
+  }
+
+  document.getElementById("searchResults").innerHTML = results.slice(0, 12).map(r => `
+    <div class="resultItem" onclick="selectStation('${r.id}','${String(r.name).replace(/'/g, "\\'")}')">
+      <strong>${escapeHtml(r.name)}</strong><br>
+      <small>${escapeHtml((r.modes || []).join(", "))}</small>
+    </div>
+  `).join("");
 }
 
-function openFavouritesQuickPick() {
-  alert(
-    "Prototype tip:\n\nUse the Set buttons on each board header to choose favourites.\n\nLater we can replace this with a proper search UI."
-  );
+function selectStation(id, name) {
+  if (!activeFavouriteSlot) return;
+  setFav(activeFavouriteSlot, id, name);
+  closeSearch();
+  refreshAll(true);
+}
+
+function openFavouritesHelp() {
+  alert("Tap Set on Favourite #1 or #2, then search and select a station.\n\nLine filters are per-board on the right.");
 }
 
 // ========== LOCATION ==========
@@ -516,15 +669,18 @@ function setNearestFromLocation() {
   }
   setStatus("Getting location…");
   pulse(true);
+
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
       const { latitude, longitude } = pos.coords;
       let best = null;
       let bestD = Infinity;
+
       for (const s of STATIONS) {
         const d = haversineMeters(latitude, longitude, s.lat, s.lon);
         if (d < bestD) { bestD = d; best = s; }
       }
+
       nearestStop = best;
       els.nearName.textContent = best.name;
       els.nearMeta.textContent = `~${Math.round(bestD)}m away`;
@@ -541,14 +697,15 @@ function setNearestFromLocation() {
 
 // ========== MAIN REFRESH ==========
 async function refreshAll(manual=false) {
-  const fav1 = getFav("fav1");
-  const fav2 = getFav("fav2");
+  const fav1 = getFavId("fav1");
+  const fav2 = getFavId("fav2");
+  const fav1Name = getFavName("fav1");
+  const fav2Name = getFavName("fav2");
 
-  // Update headers
+  // Headers + empty states
   if (fav1) {
-    const s = stationById(fav1);
-    els.fav1Name.textContent = s.name;
-    els.fav1Meta.textContent = s.id;
+    els.fav1Name.textContent = fav1Name || "Favourite #1";
+    els.fav1Meta.textContent = lastUpdated ? `Last updated ${fmtClock(lastUpdated)}` : "—";
   } else {
     els.fav1Name.textContent = "Favourite #1";
     els.fav1Meta.textContent = "Not set";
@@ -556,9 +713,8 @@ async function refreshAll(manual=false) {
   }
 
   if (fav2) {
-    const s = stationById(fav2);
-    els.fav2Name.textContent = s.name;
-    els.fav2Meta.textContent = s.id;
+    els.fav2Name.textContent = fav2Name || "Favourite #2";
+    els.fav2Meta.textContent = lastUpdated ? `Last updated ${fmtClock(lastUpdated)}` : "—";
   } else {
     els.fav2Name.textContent = "Favourite #2";
     els.fav2Meta.textContent = "Not set";
@@ -567,7 +723,6 @@ async function refreshAll(manual=false) {
 
   if (!nearestStop) {
     els.nearName.textContent = "Nearest station";
-    // keep nearMeta as-is
     els.nearTable.innerHTML = `<tr><td>Tap <strong>Use location</strong> to set nearest station.</td><td class="time">—</td></tr>`;
   }
 
@@ -588,24 +743,33 @@ async function refreshAll(manual=false) {
 
   try {
     const results = await Promise.all(ids.map(x => fetchArrivals(x.id)));
-    // Build filter options from all arrivals combined
-    const all = results.flat();
-    buildLineFilterOptions(all);
 
-    const selected = lineFilter.value;
-    for (let i=0; i<ids.length; i++) {
-      let items = results[i];
+    for (let i = 0; i < ids.length; i++) {
+      const boardKey = ids[i].key;
+      const arrivals = results[i];
+
+      // Populate per-board line dropdown
+      buildBoardLineOptions(boardLineSelect[boardKey], arrivals);
+
+      // Apply per-board selection
+      const selected = boardLineSelect[boardKey]?.value || "all";
+      let items = arrivals;
       if (selected !== "all") {
         items = items.filter(it => getLineKey(it) === selected);
       }
+
       renderTable(ids[i].table, items);
     }
 
     lastUpdated = new Date();
+    // refresh header meta now that we have lastUpdated
+    if (fav1) els.fav1Meta.textContent = `Last updated ${fmtClock(lastUpdated)}`;
+    if (fav2) els.fav2Meta.textContent = `Last updated ${fmtClock(lastUpdated)}`;
+    if (nearestStop) els.nearMeta.textContent = els.nearMeta.textContent || `Last updated ${fmtClock(lastUpdated)}`;
+
     setStatus(`Updated ${fmtClock(lastUpdated)} · mode: ${displayMode.value}`);
   } catch (e) {
     setStatus("Update failed");
-    // show a friendly error row in each active table
     for (const x of ids) {
       x.table.innerHTML = `<tr><td><span class="warn">Couldn’t load departures.</span><div class="subline">${escapeHtml(e.message || e)}</div></td><td class="time">—</td></tr>`;
     }
@@ -614,64 +778,10 @@ async function refreshAll(manual=false) {
   }
 }
 
-// React to filter/mode changes
-lineFilter.addEventListener("change", () => refreshAll(true));
-displayMode.addEventListener("change", () => refreshAll(true));
-
 // Start auto refresh
 function startTimer() {
   if (timer) clearInterval(timer);
   timer = setInterval(() => refreshAll(false), AUTO_REFRESH_SECONDS * 1000);
-}
-let activeFavouriteSlot = null;
-
-function openSearch(slot) {
-  activeFavouriteSlot = slot;
-  document.getElementById("searchModal").style.display = "block";
-  document.getElementById("stationSearchInput").value = "";
-  document.getElementById("searchResults").innerHTML = "";
-  document.getElementById("stationSearchInput").focus();
-}
-
-function closeSearch() {
-  document.getElementById("searchModal").style.display = "none";
-  activeFavouriteSlot = null;
-}
-
-async function searchStations(q) {
-  if (!q || q.length < 2) return;
-
-  const res = await fetch(`${API_BASE}/stations/search?q=${encodeURIComponent(q)}`);
-  if (!res.ok) {
-    document.getElementById("searchResults").innerHTML = "Search failed";
-    return;
-  }
-
-  const data = await res.json();
-  const results = data.matches || [];
-
-  if (results.length === 0) {
-    document.getElementById("searchResults").innerHTML = "<div>No results</div>";
-    return;
-  }
-
-  document.getElementById("searchResults").innerHTML = results.map(r => `
-    <div style="padding:10px; border-bottom:1px solid #333; cursor:pointer"
-         onclick="selectStation('${r.id}','${r.name.replace(/'/g, "\\'")}')">
-      <strong>${r.name}</strong><br>
-      <small>${r.modes.join(", ")}</small>
-    </div>
-  `).join("");
-}
-
-function selectStation(id, name) {
-  if (!activeFavouriteSlot) return;
-
-  localStorage.setItem(`fav_${activeFavouriteSlot}_id`, id);
-  localStorage.setItem(`fav_${activeFavouriteSlot}_name`, name);
-
-  closeSearch();
-  refreshAll(true);
 }
 
 // Initial paint
@@ -679,20 +789,5 @@ refreshAll(false);
 startTimer();
 </script>
 
-  <!-- Station Search Modal -->
-<div id="searchModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:999;">
-  <div style="background:#111; max-width:430px; margin:10vh auto; border-radius:12px; padding:14px;">
-    <div style="display:flex; gap:8px; margin-bottom:10px;">
-      <input
-        id="stationSearchInput"
-        placeholder="Search station (e.g. Woolwich)"
-        style="flex:1; padding:10px; border-radius:8px; border:none; font-size:16px;"
-      >
-      <button onclick="closeSearch()">✕</button>
-    </div>
-    <div id="searchResults"></div>
-  </div>
-</div>
-  
 </body>
 </html>
