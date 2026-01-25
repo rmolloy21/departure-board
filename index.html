@@ -18,6 +18,9 @@
 
       --navy: rgba(9, 18, 38, 0.65);
       --shadow: 0 6px 18px rgba(0,0,0,0.18);
+
+      /* ticker duration is set dynamically in JS */
+      --tickerDuration: 40s;
     }
     @media (prefers-color-scheme: light) {
       :root{
@@ -44,7 +47,6 @@
       padding: 14px 14px 28px;
     }
 
-    /* Top bar */
     header{
       display:flex;
       align-items:flex-start;
@@ -155,7 +157,7 @@
       display:inline-block;
       white-space: nowrap;
       will-change: transform;
-      animation: scrollLeft 26s linear infinite;
+      animation: scrollLeft var(--tickerDuration) linear infinite;
       padding-left: 100%;
     }
     .tickerItem{
@@ -184,6 +186,16 @@
       overflow:hidden;
       box-shadow: var(--shadow);
     }
+
+    /* Drag hint when dragging */
+    .board.dragging{
+      opacity: 0.55;
+    }
+    .board.dropTarget{
+      outline: 2px dashed var(--accent);
+      outline-offset: 3px;
+    }
+
     .boardHeader{
       padding: 12px 12px 10px;
       border-bottom: 1px solid var(--line);
@@ -192,7 +204,12 @@
       gap:10px;
       align-items:flex-start;
       background: var(--navy);
+      cursor: grab;
     }
+    .boardHeader:active{
+      cursor: grabbing;
+    }
+
     .boardHeader .left{ min-width: 0; }
     .boardHeader .name{
       font-weight: 900;
@@ -213,22 +230,8 @@
     }
     .boardHeader .right{
       display:flex;
-      flex-direction:column;
       gap:8px;
-      align-items:flex-end;
-      min-width: 150px;
-    }
-    .lineSelect{
-      width: 100%;
-      font-size: 12px;
-      padding: 7px 8px;
-      border-radius: 10px;
-    }
-    .smallRow{
-      display:flex;
-      gap:8px;
-      justify-content:flex-end;
-      width: 100%;
+      align-items:flex-start;
     }
     .smallBtn{
       font-size: 12px;
@@ -241,9 +244,7 @@
       color: var(--text);
     }
 
-    .boardBody{
-      padding: 0;
-    }
+    .boardBody{ padding:0; }
 
     .table{
       width:100%;
@@ -294,7 +295,6 @@
     .warn{ color: var(--danger); font-weight: 800; }
     .ok{ color: var(--ok); font-weight: 800; }
 
-    /* Collapsible */
     .collapseToggle{
       cursor:pointer;
       user-select:none;
@@ -360,9 +360,7 @@
       outline:none;
     }
     @media (prefers-color-scheme: light) {
-      .input{
-        background: #f6f7fb;
-      }
+      .input{ background: #f6f7fb; }
     }
     .results{
       border: 1px solid var(--line);
@@ -377,6 +375,29 @@
     }
     .resultItem:last-child{ border-bottom:none; }
     .resultItem small{ color: var(--muted); }
+
+    .checkRow{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      padding: 8px 2px;
+      user-select:none;
+    }
+    .checkRow input{
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+    .checkRow .txt{
+      font-size: 13px;
+      color: var(--text);
+      font-weight: 800;
+    }
+    .checkRow .sub{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+    }
 
     .footerNote{
       margin-top: 12px;
@@ -447,11 +468,19 @@
           <div class="results" id="fromResults" style="display:none;"></div>
         </div>
 
-        <div class="field">
+        <div class="field" id="toField">
           <div class="fieldLabel">Arrival</div>
           <input class="input" id="toInput" placeholder="Enter arrival station" autocomplete="off" />
           <div class="results" id="toResults" style="display:none;"></div>
         </div>
+
+        <label class="checkRow">
+          <input type="checkbox" id="showAllCb" />
+          <div>
+            <div class="txt">Show all departures</div>
+            <div class="sub">Don’t filter by destination (useful for big stations)</div>
+          </div>
+        </label>
 
         <div class="row" style="justify-content:flex-end;">
           <button class="smallBtn ghostBtn" id="cancelAddBtn">Cancel</button>
@@ -483,14 +512,16 @@
 const API_BASE = "https://departure-board-api.ryancmolloy.workers.dev"; // no trailing slash
 const AUTO_REFRESH_SECONDS = 25;
 const LINE_STATUS_REFRESH_SECONDS = 120;
-const MAX_DEPARTURES = 3;
+const MAX_DEPARTURES = 4;
 const EXPIRY_MS = 24 * 60 * 60 * 1000; // 24h
+
+// Ticker speed target:
+const TICKER_CHARS_PER_SECOND = 3;
 
 // TfL Tube map: open official page (no embedding/caching)
 const TUBE_MAP_URL = "https://tfl.gov.uk/maps/track/tube";
 
 // Minimal station list for nearest-station demo (best-effort).
-// If you add a Worker endpoint later (e.g. /stations/near?lat=..&lon=..), we can replace this.
 const STATIONS_FOR_NEAREST = [
   { name: "Woolwich (Elizabeth line)", id: "910GWOLWXR", lat: 51.4919, lon: 0.0712 },
   { name: "Canary Wharf (Elizabeth line)", id: "910GCANWHRF", lat: 51.5036, lon: -0.0199 },
@@ -500,20 +531,24 @@ const STATIONS_FOR_NEAREST = [
   { name: "London Bridge", id: "910GLNDBRDG", lat: 51.5054, lon: -0.0865 },
 ];
 
-const STORAGE_KEY = "ldb_boards_v2";
+const STORAGE_KEY = "ldb_boards_v3";
 
 // ========= STATE =========
-let boards = []; // {id, fromId, fromName, toId, toName, favourite, createdAt, collapsed, lineFilter}
+let boards = []; // ordered list
 let timer = null;
 let tickerTimer = null;
-let lastUpdated = null;
 
 let addDraft = {
   from: null, // {id,name}
-  to: null
+  to: null,   // {id,name} optional if showAll === true
+  showAll: false
 };
+
 let fromSearchTimer = null;
 let toSearchTimer = null;
+
+// drag state
+let dragId = null;
 
 // ========= ELEMENTS =========
 const statusText = document.getElementById("statusText");
@@ -535,6 +570,8 @@ const fromInput = document.getElementById("fromInput");
 const toInput = document.getElementById("toInput");
 const fromResults = document.getElementById("fromResults");
 const toResults = document.getElementById("toResults");
+const showAllCb = document.getElementById("showAllCb");
+const toField = document.getElementById("toField");
 
 const tickerWrap = document.getElementById("tickerWrap");
 const tickerTrack = document.getElementById("tickerTrack");
@@ -577,6 +614,22 @@ function haversineMeters(aLat,aLon,bLat,bLon){
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
+// normalise station names for lenient destination matching
+function normStationName(s){
+  return (s || "")
+    .toLowerCase()
+    .replace(/\(.*?\)/g, "")      // remove bracketed qualifiers
+    .replace(/station/g, "")      // remove "station"
+    .replace(/underground/g, "")
+    .replace(/rail/g, "")
+    .replace(/elizabeth line/g, "")
+    .replace(/dlr/g, "")
+    .replace(/overground/g, "")
+    .replace(/[\.\,]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 // ========= STORAGE =========
 function loadBoards(){
   try{
@@ -585,15 +638,16 @@ function loadBoards(){
     const now = Date.now();
 
     boards = (Array.isArray(arr) ? arr : [])
-      .filter(b => b && b.id && b.fromId && b.toId)
+      .filter(b => b && b.id && b.fromId)
       .filter(b => b.favourite || (now - (b.createdAt || 0)) < EXPIRY_MS);
 
-    // normalize defaults
     boards.forEach(b => {
       if (typeof b.collapsed !== "boolean") b.collapsed = false;
-      if (!b.lineFilter) b.lineFilter = "all";
       if (typeof b.favourite !== "boolean") b.favourite = false;
       if (!b.createdAt) b.createdAt = Date.now();
+      if (typeof b.showAll !== "boolean") b.showAll = false;
+      if (!b.toId) b.toId = null;
+      if (!b.toName) b.toName = "";
     });
 
     saveBoards();
@@ -624,7 +678,6 @@ async function apiArrivals(stopPointId){
 }
 
 async function apiLineStatus(){
-  // Optional endpoint; app will hide ticker if missing.
   const modes = "tube,dlr,overground,elizabeth-line";
   const res = await fetch(`${API_BASE}/lineStatus?modes=${encodeURIComponent(modes)}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -636,7 +689,6 @@ async function apiLineStatus(){
 }
 
 async function apiLastJourney(fromId, toId){
-  // Optional endpoint; app will show "—" if missing.
   const res = await fetch(`${API_BASE}/journey/last?fromId=${encodeURIComponent(fromId)}&toId=${encodeURIComponent(toId)}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
@@ -644,29 +696,6 @@ async function apiLastJourney(fromId, toId){
     lastDepart: data.lastDepart || null,
     lastArrive: data.lastArrive || null
   };
-}
-
-function getLineKey(item){
-  return (item.lineId || item.lineName || "unknown").toLowerCase();
-}
-
-function buildLineOptions(selectEl, arrivals, currentValue){
-  const seen = new Map(); // key -> display
-  for (const it of arrivals || []) {
-    const key = getLineKey(it);
-    const display = it.lineName || it.lineId || "Unknown";
-    if (!seen.has(key)) seen.set(key, display);
-  }
-  selectEl.innerHTML = `<option value="all">All departures</option>`;
-  [...seen.entries()].sort((a,b)=>a[1].localeCompare(b[1])).forEach(([k, d])=>{
-    const opt = document.createElement("option");
-    opt.value = k;
-    opt.textContent = d;
-    selectEl.appendChild(opt);
-  });
-
-  const exists = [...selectEl.options].some(o => o.value === currentValue);
-  selectEl.value = exists ? currentValue : "all";
 }
 
 // ========= RENDER =========
@@ -690,7 +719,7 @@ function render(){
             <tr>
               <td>
                 <div class="dest">Example</div>
-                <div class="subline">Woolwich → Green Park · filter by line · favourite boards persist</div>
+                <div class="subline">Woolwich → Green Park · ★ favourite boards persist · drag boards to reorder</div>
               </td>
               <td class="time">—</td>
             </tr>
@@ -705,12 +734,15 @@ function render(){
     const card = document.createElement("section");
     card.className = `board ${b.collapsed ? "collapsed" : ""}`;
     card.dataset.id = b.id;
+    card.draggable = true;
 
-    const title = `${b.fromName} to ${b.toName}`;
+    const title = b.showAll
+      ? `${b.fromName} — All departures`
+      : `${b.fromName} to ${b.toName}`;
 
     card.innerHTML = `
-      <div class="boardHeader">
-        <div class="left collapseToggle" title="Tap to collapse/expand">
+      <div class="boardHeader" title="Drag to reorder · Tap left area to collapse/expand">
+        <div class="left collapseToggle">
           <div class="name">${escapeHtml(title)}</div>
           <div class="meta">
             <span>${b.favourite ? "<span class='ok'>★ Favourite</span>" : "Not favourited (expires in 24h)"}</span>
@@ -718,13 +750,8 @@ function render(){
           </div>
         </div>
         <div class="right">
-          <select class="lineSelect" id="line-${b.id}">
-            <option value="all">All departures</option>
-          </select>
-          <div class="smallRow">
-            <button class="smallBtn" id="fav-${b.id}" title="Add/remove favourite">${b.favourite ? "★" : "☆"}</button>
-            <button class="smallBtn ghostBtn" id="del-${b.id}" title="Delete">Delete</button>
-          </div>
+          <button class="smallBtn" id="fav-${b.id}" title="Add/remove favourite">${b.favourite ? "★" : "☆"}</button>
+          <button class="smallBtn ghostBtn" id="del-${b.id}" title="Delete">Delete</button>
         </div>
       </div>
 
@@ -740,8 +767,9 @@ function render(){
       </div>
     `;
 
-    // Collapse toggle
-    card.querySelector(".collapseToggle").addEventListener("click", () => {
+    // Collapse toggle (left side only)
+    card.querySelector(".collapseToggle").addEventListener("click", (e) => {
+      e.stopPropagation();
       b.collapsed = !b.collapsed;
       saveBoards();
       render();
@@ -751,7 +779,6 @@ function render(){
     card.querySelector(`#fav-${CSS.escape(b.id)}`).addEventListener("click", (e) => {
       e.stopPropagation();
       b.favourite = !b.favourite;
-      // if they favourite it, refresh createdAt to “now” so it never expires by mistake
       if (b.favourite) b.createdAt = Date.now();
       saveBoards();
       render();
@@ -766,50 +793,109 @@ function render(){
       render();
     });
 
-    // Line filter change
-    card.querySelector(`#line-${CSS.escape(b.id)}`).addEventListener("change", (e) => {
-      b.lineFilter = e.target.value;
-      saveBoards();
-      refreshBoard(b, true);
-    });
+    // Drag & drop handlers
+    setupDragHandlers(card);
 
     boardsEl.appendChild(card);
   }
 }
 
-// ========= BOARD DATA POPULATION =========
-function renderDeparturesTable(tableEl, items, toName, lineFilterKey){
-  tableEl.innerHTML = "";
-
-  if (!items || items.length === 0){
-    tableEl.innerHTML = `<tr><td><span class="warn">No departures found.</span><div class="subline">Try “All departures” or refresh.</div></td><td class="time">—</td></tr>`;
-    return;
-  }
-
-  // Filter to the chosen destination (best-effort)
-  const to = (toName || "").toLowerCase();
-  let filtered = items.filter(it => {
-    const dest = (it.destinationName || it.towards || "").toLowerCase();
-    return to.length < 2 ? true : dest.includes(to);
+function setupDragHandlers(card){
+  const id = card.dataset.id;
+  card.addEventListener("dragstart", (e) => {
+    dragId = id;
+    card.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move";
+    try { e.dataTransfer.setData("text/plain", id); } catch {}
   });
 
-  if (lineFilterKey && lineFilterKey !== "all"){
-    filtered = filtered.filter(it => getLineKey(it) === lineFilterKey);
-  }
+  card.addEventListener("dragend", () => {
+    dragId = null;
+    card.classList.remove("dragging");
+    document.querySelectorAll(".board.dropTarget").forEach(el => el.classList.remove("dropTarget"));
+  });
 
-  filtered = filtered.slice(0, MAX_DEPARTURES);
+  card.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    if (!dragId || dragId === id) return;
+    card.classList.add("dropTarget");
+    e.dataTransfer.dropEffect = "move";
+  });
 
-  if (filtered.length === 0){
-    tableEl.innerHTML = `<tr><td><span class="warn">No matching departures.</span><div class="subline">Destination filter may be strict — try “All departures”.</div></td><td class="time">—</td></tr>`;
+  card.addEventListener("dragleave", () => {
+    card.classList.remove("dropTarget");
+  });
+
+  card.addEventListener("drop", (e) => {
+    e.preventDefault();
+    card.classList.remove("dropTarget");
+
+    const srcId = dragId || (()=>{
+      try { return e.dataTransfer.getData("text/plain"); } catch { return null; }
+    })();
+    const dstId = id;
+    if (!srcId || !dstId || srcId === dstId) return;
+
+    const srcIdx = boards.findIndex(b => b.id === srcId);
+    const dstIdx = boards.findIndex(b => b.id === dstId);
+    if (srcIdx < 0 || dstIdx < 0) return;
+
+    const [moved] = boards.splice(srcIdx, 1);
+    boards.splice(dstIdx, 0, moved);
+
+    saveBoards();
+    render();
+    refreshAll(true);
+  });
+}
+
+// ========= BOARD DATA POPULATION =========
+function renderDeparturesTable(tableEl, arrivals, board){
+  tableEl.innerHTML = "";
+
+  if (!arrivals || arrivals.length === 0){
+    tableEl.innerHTML = `<tr><td><span class="warn">No departures found.</span><div class="subline">Try refresh.</div></td><td class="time">—</td></tr>`;
     return;
   }
 
-  for (const it of filtered){
+  // Always show something. If destination matching fails, fall back to all.
+  let items = arrivals;
+
+  let usedFallback = false;
+  if (!board.showAll && board.toName){
+    const target = normStationName(board.toName);
+
+    const strict = arrivals.filter(it => {
+      const dest = normStationName(it.destinationName || it.towards || "");
+      return dest.includes(target) || target.includes(dest);
+    });
+
+    // If strict yields nothing, try a softer token match:
+    let soft = strict;
+    if (soft.length === 0 && target.length >= 3){
+      const tokens = target.split(" ").filter(t => t.length >= 3);
+      soft = arrivals.filter(it => {
+        const dest = normStationName(it.destinationName || it.towards || "");
+        return tokens.some(t => dest.includes(t));
+      });
+    }
+
+    if (soft.length > 0){
+      items = soft;
+    } else {
+      items = arrivals; // fallback
+      usedFallback = true;
+    }
+  }
+
+  items = items.slice(0, MAX_DEPARTURES);
+
+  for (const it of items){
     const dest = it.destinationName || it.towards || "Unknown destination";
     const lineName = it.lineName || it.lineId || "Unknown line";
-    const platform = it.platformName ? `Platform ${it.platformName.replace(/^Platform\s+/i,"")}` : null;
+    const platform = it.platformName ? `Platform ${String(it.platformName).replace(/^Platform\s+/i,"")}` : null;
 
-    const depTime = minutesFromNow(it.expectedArrival);
+    const timeText = minutesFromNow(it.expectedArrival);
     const subBits = [lineName];
     if (platform) subBits.push(platform);
 
@@ -819,20 +905,32 @@ function renderDeparturesTable(tableEl, items, toName, lineFilterKey){
         <div class="dest">${escapeHtml(dest)}</div>
         <div class="subline">${subBits.map(escapeHtml).join(" · ")}</div>
       </td>
-      <td class="time">${escapeHtml(depTime)}</td>
+      <td class="time">${escapeHtml(timeText)}</td>
+    `;
+    tableEl.appendChild(tr);
+  }
+
+  if (usedFallback){
+    // Add a subtle footer row so users understand why it’s not “to X”
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td colspan="2">
+        <div class="subline">
+          Showing <strong>all departures</strong> (couldn’t confidently match destination).
+        </div>
+      </td>
     `;
     tableEl.appendChild(tr);
   }
 }
 
-function estimateFrequency(arrivals, toName){
-  // Best-effort: take first 3 departures to the destination and compute headway
-  const to = (toName || "").toLowerCase();
-  const matches = arrivals.filter(it => ((it.destinationName || it.towards || "").toLowerCase().includes(to)))
-                          .slice(0, 3);
-  if (matches.length < 2) return null;
+function estimateFrequency(arrivals){
+  // Best-effort: take first 3 departures and compute headway
+  if (!arrivals || arrivals.length < 2) return null;
+  const times = arrivals.slice(0, 4).map(x => new Date(x.expectedArrival).getTime()).filter(Number.isFinite);
+  if (times.length < 2) return null;
 
-  const times = matches.map(x => new Date(x.expectedArrival).getTime()).sort((a,b)=>a-b);
+  times.sort((a,b)=>a-b);
   const diffs = [];
   for (let i=1;i<times.length;i++){
     diffs.push((times[i]-times[i-1]) / 60000);
@@ -846,35 +944,32 @@ function estimateFrequency(arrivals, toName){
 async function refreshBoard(b, manual=false){
   const metaEl = document.getElementById(`meta-${b.id}`);
   const tableEl = document.getElementById(`table-${b.id}`);
-  const lineSel = document.getElementById(`line-${b.id}`);
   const lastEl = document.getElementById(`last-${b.id}`);
   const freqEl = document.getElementById(`freq-${b.id}`);
 
-  if (!tableEl || !lineSel) return;
+  if (!tableEl) return;
 
   try{
     const arrivals = await apiArrivals(b.fromId);
+    renderDeparturesTable(tableEl, arrivals, b);
 
-    // Populate per-board line dropdown based on seen lines at origin
-    buildLineOptions(lineSel, arrivals, b.lineFilter);
-
-    renderDeparturesTable(tableEl, arrivals, b.toName, b.lineFilter);
-
-    // Frequency (best-effort)
-    const freq = estimateFrequency(arrivals, b.toName);
+    const freq = estimateFrequency(arrivals);
     freqEl.textContent = freq || "—";
 
-    // Last train today (optional endpoint)
-    // If endpoint isn't implemented, keep "—" silently.
-    try{
-      const last = await apiLastJourney(b.fromId, b.toId);
-      if (last.lastDepart){
-        lastEl.textContent = fmtClock(last.lastDepart);
-      }else{
+    // Last train today: only meaningful if a destination is selected and showAll is false
+    if (!b.showAll && b.toId){
+      try{
+        const last = await apiLastJourney(b.fromId, b.toId);
+        if (last.lastDepart){
+          lastEl.textContent = fmtClock(last.lastDepart);
+        } else {
+          lastEl.textContent = "—";
+        }
+      }catch(_){
         lastEl.textContent = "—";
       }
-    }catch(_){
-      // ignore
+    } else {
+      lastEl.textContent = "—";
     }
 
     if (metaEl){
@@ -898,18 +993,23 @@ async function refreshAll(manual=false){
 
   try{
     for (const b of boards){
-      // Skip collapsed boards to reduce calls
       if (b.collapsed) continue;
       await refreshBoard(b, manual);
     }
-    lastUpdated = new Date();
-    setStatus(`Updated ${fmtClock(lastUpdated)}`);
+    setStatus(`Updated ${fmtClock(new Date())}`);
   }finally{
     pulse(false);
   }
 }
 
 // ========= LINE STATUS TICKER =========
+function computeTickerDurationFromText(text){
+  const chars = (text || "").length;
+  // duration seconds = chars / charsPerSecond; apply floor/ceil bounds so it never gets silly
+  const secs = Math.min(180, Math.max(30, Math.round(chars / TICKER_CHARS_PER_SECOND)));
+  document.documentElement.style.setProperty("--tickerDuration", `${secs}s`);
+}
+
 function renderTicker(lines, updatedAt){
   if (!lines || lines.length === 0){
     tickerWrap.style.display = "none";
@@ -919,15 +1019,25 @@ function renderTicker(lines, updatedAt){
   tickerWrap.style.display = "";
   tickerMeta.textContent = updatedAt ? `Updated ${fmtClock(updatedAt)}` : "Updated recently";
 
-  const itemsHtml = lines.map(l => {
+  const items = lines.map(l => {
+    const s = String(l.status || "").toLowerCase();
+    const good = s.includes("good") || s.includes("running") || s.includes("service");
+    const cls = good ? "statusGood" : "statusBad";
+    return `${l.name}: ${l.status || "—"}`;
+  });
+
+  const text = items.join("   •   ");
+  computeTickerDurationFromText(text);
+
+  const html = lines.map(l => {
     const s = String(l.status || "").toLowerCase();
     const good = s.includes("good") || s.includes("running") || s.includes("service");
     const cls = good ? "statusGood" : "statusBad";
     return `<span class="tickerItem">${escapeHtml(l.name)}: <span class="${cls}">${escapeHtml(l.status || "—")}</span></span>`;
   }).join("");
 
-  // Duplicate content so it loops seamlessly
-  tickerTrack.innerHTML = itemsHtml + itemsHtml;
+  // Duplicate content for seamless loop
+  tickerTrack.innerHTML = html + html;
 }
 
 async function refreshTicker(){
@@ -935,20 +1045,21 @@ async function refreshTicker(){
     const { updatedAt, lines } = await apiLineStatus();
     renderTicker(lines, updatedAt ? new Date(updatedAt) : null);
   }catch(_){
-    // If endpoint doesn't exist yet, just hide it.
     tickerWrap.style.display = "none";
   }
 }
 
 // ========= ADD JOURNEY FLOW =========
 function openAddModal(){
-  addDraft = { from: null, to: null };
+  addDraft = { from: null, to: null, showAll: false };
   fromInput.value = "";
   toInput.value = "";
   fromResults.style.display = "none";
   toResults.style.display = "none";
   fromResults.innerHTML = "";
   toResults.innerHTML = "";
+  showAllCb.checked = false;
+  toField.style.display = "";
   doneAddBtn.disabled = true;
   addModal.style.display = "block";
   fromInput.focus();
@@ -959,6 +1070,14 @@ function closeAddModal(){
 }
 
 function updateDoneButton(){
+  if (!addDraft.from) {
+    doneAddBtn.disabled = true;
+    return;
+  }
+  if (addDraft.showAll) {
+    doneAddBtn.disabled = false;
+    return;
+  }
   doneAddBtn.disabled = !(addDraft.from && addDraft.to);
 }
 
@@ -1012,7 +1131,7 @@ function debounceSearch(which, q){
         });
       }
     }catch(e){
-      // ignore; keep UI quiet
+      // keep quiet
     }
   };
 
@@ -1026,7 +1145,8 @@ function debounceSearch(which, q){
 }
 
 function addBoard(){
-  if (!addDraft.from || !addDraft.to) return;
+  if (!addDraft.from) return;
+  if (!addDraft.showAll && !addDraft.to) return;
 
   const id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
 
@@ -1034,12 +1154,12 @@ function addBoard(){
     id,
     fromId: addDraft.from.id,
     fromName: addDraft.from.name,
-    toId: addDraft.to.id,
-    toName: addDraft.to.name,
+    toId: addDraft.showAll ? null : addDraft.to.id,
+    toName: addDraft.showAll ? "" : addDraft.to.name,
+    showAll: !!addDraft.showAll,
     favourite: false,
     createdAt: Date.now(),
-    collapsed: false,
-    lineFilter: "all"
+    collapsed: false
   });
 
   saveBoards();
@@ -1071,32 +1191,26 @@ function setNearestFromLocation(){
         return;
       }
 
-      // Add a “Nearest station -> destination” board requires a destination.
-      // For now, we add a quick board showing “All departures” from nearest,
-      // by setting destination to nearest itself (so the dest filter is loose).
-      // You can change this behaviour later to prompt for destination.
       const id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
       boards.unshift({
         id,
         fromId: best.id,
         fromName: best.name,
-        toId: best.id,
-        toName: "", // empty => no destination filtering
+        toId: null,
+        toName: "",
+        showAll: true,
         favourite: false,
         createdAt: Date.now(),
-        collapsed: false,
-        lineFilter: "all"
+        collapsed: false
       });
 
       saveBoards();
       render();
       await refreshAll(true);
     },
-    (err) => {
-      alert("Location permission denied.");
-    },
+    () => alert("Location permission denied."),
     { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
-  ).finally?.(()=>{ pulse(false); });
+  );
 }
 
 // ========= EVENTS =========
@@ -1108,11 +1222,24 @@ doneAddBtn.addEventListener("click", addBoard);
 fromInput.addEventListener("input", (e)=> debounceSearch("from", e.target.value));
 toInput.addEventListener("input", (e)=> debounceSearch("to", e.target.value));
 
+showAllCb.addEventListener("change", (e) => {
+  addDraft.showAll = !!e.target.checked;
+  if (addDraft.showAll){
+    // arrival becomes optional; visually hide field
+    toField.style.display = "none";
+    addDraft.to = null;
+    toInput.value = "";
+    toResults.style.display = "none";
+  } else {
+    toField.style.display = "";
+  }
+  updateDoneButton();
+});
+
 nearestBtn.addEventListener("click", setNearestFromLocation);
 tubeMapBtn.addEventListener("click", () => window.open(TUBE_MAP_URL, "_blank", "noopener,noreferrer"));
 
 addModal.addEventListener("click", (e) => {
-  // click outside modal closes
   if (e.target === addModal) closeAddModal();
 });
 
