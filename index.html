@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>London Departure Board — Prototype</title>
+  <title>London Departure Boards</title>
 
   <style>
     :root{
@@ -15,6 +15,9 @@
       --line: #2a3240;
       --danger: #ff6b6b;
       --ok: #4ade80;
+
+      --navy: rgba(9, 18, 38, 0.65);
+      --shadow: 0 6px 18px rgba(0,0,0,0.18);
     }
     @media (prefers-color-scheme: light) {
       :root{
@@ -24,6 +27,8 @@
         --text: #0b1220;
         --line: #e6eaf0;
         --accent: #111827;
+        --navy: rgba(240, 243, 248, 1);
+        --shadow: 0 6px 18px rgba(0,0,0,0.08);
       }
     }
 
@@ -38,29 +43,33 @@
       margin: 0 auto;
       padding: 14px 14px 28px;
     }
+
+    /* Top bar */
     header{
       display:flex;
       align-items:flex-start;
       justify-content:space-between;
       gap:12px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
     .title{ line-height:1.1; }
     .title h1{
       font-size: 18px;
       margin: 4px 0 2px;
-      font-weight: 800;
+      font-weight: 900;
       letter-spacing: 0.2px;
     }
     .title .sub{
       font-size: 12px;
       color: var(--muted);
     }
-    .controls{
+
+    .topButtons{
       display:flex;
       flex-direction:column;
       gap:8px;
       align-items:flex-end;
+      min-width: 150px;
     }
     .row{
       display:flex;
@@ -68,11 +77,12 @@
       flex-wrap:wrap;
       justify-content:flex-end;
     }
-    select, button{
+
+    button, select{
       background: var(--card);
       color: var(--text);
       border: 1px solid var(--line);
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 9px 10px;
       font-size: 13px;
       outline:none;
@@ -82,8 +92,15 @@
       border-color: transparent;
       background: var(--accent);
       color: #0b0d10;
-      font-weight: 800;
+      font-weight: 900;
     }
+    button.icon{
+      width: 40px;
+      padding: 9px 0;
+      text-align:center;
+      font-weight: 900;
+    }
+
     .pill{
       font-size: 12px;
       color: var(--muted);
@@ -94,27 +111,79 @@
       gap:8px;
       align-items:center;
       background: rgba(255,255,255,0.02);
+      margin-bottom: 10px;
     }
     .dot{
       width:8px; height:8px; border-radius:999px; background: var(--muted);
       display:inline-block;
     }
 
+    /* Ticker */
+    .tickerWrap{
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: 14px;
+      overflow:hidden;
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+    }
+    .tickerHeader{
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--navy);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .tickerHeader .label{
+      font-weight: 900;
+      font-size: 13px;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+    }
+    .tickerHeader .meta{
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .tickerBody{
+      padding: 10px 0;
+      overflow:hidden;
+    }
+    .tickerTrack{
+      display:inline-block;
+      white-space: nowrap;
+      will-change: transform;
+      animation: scrollLeft 26s linear infinite;
+      padding-left: 100%;
+    }
+    .tickerItem{
+      display:inline-block;
+      margin: 0 18px;
+      font-size: 12.5px;
+    }
+    .statusGood{ color: var(--ok); font-weight: 800; }
+    .statusBad{ color: var(--danger); font-weight: 800; }
+    @keyframes scrollLeft{
+      0%{ transform: translateX(0); }
+      100%{ transform: translateX(-100%); }
+    }
+
+    /* Boards list */
     .boards{
       display:flex;
       flex-direction:column;
       gap: 12px;
-      margin-top: 10px;
+      margin-top: 6px;
     }
     .board{
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 14px;
       overflow:hidden;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+      box-shadow: var(--shadow);
     }
-
-    /* ===== Board header styling (dark navy tint) ===== */
     .boardHeader{
       padding: 12px 12px 10px;
       border-bottom: 1px solid var(--line);
@@ -122,14 +191,8 @@
       justify-content:space-between;
       gap:10px;
       align-items:flex-start;
-      background: rgba(9, 18, 38, 0.65);
+      background: var(--navy);
     }
-    @media (prefers-color-scheme: light) {
-      .boardHeader{
-        background: rgba(240, 243, 248, 1);
-      }
-    }
-
     .boardHeader .left{ min-width: 0; }
     .boardHeader .name{
       font-weight: 900;
@@ -147,30 +210,41 @@
       gap:10px;
       flex-wrap:wrap;
       align-items:center;
-      opacity: 0.95;
     }
     .boardHeader .right{
       display:flex;
       flex-direction:column;
       gap:8px;
       align-items:flex-end;
-      min-width: 140px;
+      min-width: 150px;
     }
-    .smallBtn{
-      font-size: 12px;
-      padding: 7px 9px;
-      border-radius: 10px;
-    }
-
-    /* ===== Compact per-board line dropdown ===== */
     .lineSelect{
       width: 100%;
       font-size: 12px;
       padding: 7px 8px;
       border-radius: 10px;
     }
+    .smallRow{
+      display:flex;
+      gap:8px;
+      justify-content:flex-end;
+      width: 100%;
+    }
+    .smallBtn{
+      font-size: 12px;
+      padding: 7px 9px;
+      border-radius: 10px;
+    }
+    .ghostBtn{
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
 
-    /* ===== More compact departure rows ===== */
+    .boardBody{
+      padding: 0;
+    }
+
     .table{
       width:100%;
       border-collapse: collapse;
@@ -182,8 +256,7 @@
       vertical-align: top;
     }
     .table tr:last-child td{ border-bottom:none; }
-
-    .dest{ font-weight: 800; margin-bottom: 1px; }
+    .dest{ font-weight: 900; margin-bottom: 1px; }
     .subline{
       color: var(--muted);
       font-size: 11px;
@@ -199,80 +272,120 @@
       font-weight: 900;
       width: 1%;
     }
-    .hint{
-      margin-top: 10px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height:1.35;
-    }
-    .warn{ color: var(--danger); font-weight: 700; }
-    .ok{ color: var(--ok); font-weight: 700; }
-    .footer{
-      margin-top: 14px;
-      color: var(--muted);
-      font-size: 11.5px;
-      line-height:1.35;
-    }
-    a{ color: inherit; }
 
-    /* ===== Station search modal ===== */
+    .boardFooter{
+      padding: 10px 12px;
+      border-top: 1px solid var(--line);
+      font-size: 12px;
+      color: var(--muted);
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .badge{
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      background: rgba(255,255,255,0.02);
+    }
+    .warn{ color: var(--danger); font-weight: 800; }
+    .ok{ color: var(--ok); font-weight: 800; }
+
+    /* Collapsible */
+    .collapseToggle{
+      cursor:pointer;
+      user-select:none;
+    }
+    .collapsed .boardBody,
+    .collapsed .boardFooter{
+      display:none;
+    }
+
+    /* Modal */
     .modalBackdrop{
       display:none;
       position:fixed;
       inset:0;
-      background:rgba(0,0,0,0.6);
+      background:rgba(0,0,0,0.65);
       z-index:999;
       padding: 10px;
     }
     .modal{
-      background: #111;
+      background: var(--card);
       max-width: 430px;
       margin: 10vh auto;
-      border-radius: 12px;
+      border-radius: 14px;
       padding: 14px;
-      border: 1px solid rgba(255,255,255,0.08);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
     }
-    @media (prefers-color-scheme: light) {
-      .modal{
-        background: #fff;
-        border: 1px solid rgba(0,0,0,0.08);
-      }
-    }
-    .modalRow{
+    .modalHeader{
       display:flex;
-      gap:8px;
-      margin-bottom:10px;
+      justify-content:space-between;
       align-items:center;
+      gap:10px;
+      margin-bottom: 10px;
     }
-    .modalInput{
-      flex:1;
-      padding:10px;
-      border-radius:8px;
-      border:1px solid rgba(255,255,255,0.12);
-      font-size:16px;
-      outline:none;
-      background: rgba(255,255,255,0.06);
+    .modalHeader .h{
+      font-weight: 900;
+      font-size: 14px;
+    }
+    .modalGrid{
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+    }
+    .fieldLabel{
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+    }
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap: 6px;
+    }
+    .input{
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.02);
       color: var(--text);
+      font-size: 15px;
+      outline:none;
     }
     @media (prefers-color-scheme: light) {
-      .modalInput{
+      .input{
         background: #f6f7fb;
-        border: 1px solid rgba(0,0,0,0.1);
-        color: #0b1220;
       }
+    }
+    .results{
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow:hidden;
+      background: rgba(255,255,255,0.01);
     }
     .resultItem{
-      padding:10px;
-      border-bottom:1px solid rgba(255,255,255,0.12);
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--line);
       cursor:pointer;
-    }
-    @media (prefers-color-scheme: light) {
-      .resultItem{
-        border-bottom:1px solid rgba(0,0,0,0.08);
-      }
     }
     .resultItem:last-child{ border-bottom:none; }
     .resultItem small{ color: var(--muted); }
+
+    .footerNote{
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 11.5px;
+      line-height:1.35;
+    }
+
+    a{ color: inherit; }
   </style>
 </head>
 
@@ -280,122 +393,105 @@
   <div class="phone">
     <header>
       <div class="title">
-        <h1>London Departure Board</h1>
+        <h1>London Departure Boards</h1>
         <div class="sub" id="statusText">Idle</div>
       </div>
-      <div class="controls">
+
+      <div class="topButtons">
         <div class="row">
-          <select id="displayMode">
-            <option value="countdown">Live (mins)</option>
-            <option value="clock">Snapshot (HH:MM)</option>
-          </select>
+          <button class="smallBtn" id="nearestBtn">Nearest station</button>
+          <button class="smallBtn" id="tubeMapBtn">Tube map</button>
         </div>
         <div class="row">
-          <button class="smallBtn" id="refreshBtn">Refresh</button>
-          <button class="primary smallBtn" id="settingsBtn">Favourites</button>
+          <button class="primary icon" id="addBtn">+</button>
         </div>
       </div>
     </header>
 
     <div class="pill">
       <span class="dot" id="pulseDot"></span>
-      <span>Auto-refresh: <strong id="refreshEvery">25s</strong> (while page open)</span>
+      <span>Auto-refresh: <strong id="refreshEvery">25s</strong> (while open)</span>
     </div>
 
-    <div class="boards">
-      <section class="board" id="boardFav1">
-        <div class="boardHeader">
-          <div class="left">
-            <div class="name" id="fav1Name">Favourite #1</div>
-            <div class="meta"><span id="fav1Meta">Not set</span></div>
-          </div>
-          <div class="right">
-            <select class="lineSelect" id="fav1Line">
-              <option value="all">All lines</option>
-            </select>
-            <button class="smallBtn" data-pick="fav1">Set</button>
-          </div>
-        </div>
-        <table class="table" id="fav1Table"></table>
-      </section>
+    <!-- Line Status Ticker -->
+    <section class="tickerWrap" id="tickerWrap" style="display:none;">
+      <div class="tickerHeader">
+        <div class="label">Line status</div>
+        <div class="meta" id="tickerMeta">—</div>
+      </div>
+      <div class="tickerBody">
+        <div class="tickerTrack" id="tickerTrack"></div>
+      </div>
+    </section>
 
-      <section class="board" id="boardFav2">
-        <div class="boardHeader">
-          <div class="left">
-            <div class="name" id="fav2Name">Favourite #2</div>
-            <div class="meta"><span id="fav2Meta">Not set</span></div>
-          </div>
-          <div class="right">
-            <select class="lineSelect" id="fav2Line">
-              <option value="all">All lines</option>
-            </select>
-            <button class="smallBtn" data-pick="fav2">Set</button>
-          </div>
-        </div>
-        <table class="table" id="fav2Table"></table>
-      </section>
+    <!-- Boards -->
+    <div class="boards" id="boards"></div>
 
-      <section class="board" id="boardNear">
-        <div class="boardHeader">
-          <div class="left">
-            <div class="name" id="nearName">Nearest station</div>
-            <div class="meta">
-              <span id="nearMeta">Needs location permission</span>
-            </div>
-          </div>
-          <div class="right">
-            <select class="lineSelect" id="nearLine">
-              <option value="all">All lines</option>
-            </select>
-            <button class="smallBtn" id="locBtn">Use location</button>
-          </div>
-        </div>
-        <table class="table" id="nearTable"></table>
-      </section>
-    </div>
-
-    <div class="hint">
-      Tip: “Snapshot (HH:MM)” simulates your widget approach: show <strong>clock times</strong> instead of “2 mins”.
-    </div>
-
-    <div class="footer">
+    <div class="footerNote">
       Not affiliated with or endorsed by Transport for London. Data from TfL.
     </div>
   </div>
 
-  <!-- Station Search Modal -->
-  <div id="searchModal" class="modalBackdrop">
+  <!-- Add Journey Modal -->
+  <div id="addModal" class="modalBackdrop">
     <div class="modal">
-      <div class="modalRow">
-        <input
-          id="stationSearchInput"
-          class="modalInput"
-          placeholder="Search station (e.g. Woolwich)"
-          oninput="debouncedStationSearch(this.value)"
-        >
-        <button class="smallBtn" onclick="closeSearch()">✕</button>
+      <div class="modalHeader">
+        <div class="h">Add board</div>
+        <button class="smallBtn" id="closeModalBtn">✕</button>
       </div>
-      <div id="searchResults"></div>
+
+      <div class="modalGrid">
+        <div class="field">
+          <div class="fieldLabel">Departure</div>
+          <input class="input" id="fromInput" placeholder="Enter departure station" autocomplete="off" />
+          <div class="results" id="fromResults" style="display:none;"></div>
+        </div>
+
+        <div class="field">
+          <div class="fieldLabel">Arrival</div>
+          <input class="input" id="toInput" placeholder="Enter arrival station" autocomplete="off" />
+          <div class="results" id="toResults" style="display:none;"></div>
+        </div>
+
+        <div class="row" style="justify-content:flex-end;">
+          <button class="smallBtn ghostBtn" id="cancelAddBtn">Cancel</button>
+          <button class="primary smallBtn" id="doneAddBtn" disabled>Done</button>
+        </div>
+
+        <div class="footerNote">
+          Tip: pick stations from the suggestions to avoid typos. Non-favourited boards expire after 24h.
+        </div>
+      </div>
     </div>
   </div>
 
 <script>
 /**
- * London Departure Board Prototype
- * - Frontend on GitHub Pages
- * - Backend via Cloudflare Worker:
- *   GET /stations/search?q=...
- *   GET /arrivals?stopPointId=...
+ * London Departure Boards (GitHub Pages preview)
+ * Uses your Cloudflare Worker to hide TfL keys.
+ *
+ * Required Worker endpoints:
+ *   GET  /stations/search?q=...            -> { matches: [{id,name,modes?}, ...] }
+ *   GET  /arrivals?stopPointId=...         -> { arrivals: [...] }
+ *
+ * Optional (recommended):
+ *   GET  /lineStatus?modes=tube,dlr,...    -> { lines: [{id,name,status}], updatedAt }
+ *   GET  /journey/last?fromId=...&toId=... -> { lastDepart, lastArrive }
  */
 
-// ========== CONFIG ==========
+// ========= CONFIG =========
 const API_BASE = "https://departure-board-api.ryancmolloy.workers.dev"; // no trailing slash
 const AUTO_REFRESH_SECONDS = 25;
-const MAX_ROWS = 4;
+const LINE_STATUS_REFRESH_SECONDS = 120;
+const MAX_DEPARTURES = 3;
+const EXPIRY_MS = 24 * 60 * 60 * 1000; // 24h
 
-// Minimal station list used ONLY for nearest-station demo.
-// (Favourites use live search via API.)
-const STATIONS = [
+// TfL Tube map: open official page (no embedding/caching)
+const TUBE_MAP_URL = "https://tfl.gov.uk/maps/track/tube";
+
+// Minimal station list for nearest-station demo (best-effort).
+// If you add a Worker endpoint later (e.g. /stations/near?lat=..&lon=..), we can replace this.
+const STATIONS_FOR_NEAREST = [
   { name: "Woolwich (Elizabeth line)", id: "910GWOLWXR", lat: 51.4919, lon: 0.0712 },
   { name: "Canary Wharf (Elizabeth line)", id: "910GCANWHRF", lat: 51.5036, lon: -0.0199 },
   { name: "Liverpool Street", id: "910GLIVST", lat: 51.5178, lon: -0.0824 },
@@ -404,94 +500,73 @@ const STATIONS = [
   { name: "London Bridge", id: "910GLNDBRDG", lat: 51.5054, lon: -0.0865 },
 ];
 
-const STORAGE_KEYS = {
-  fav1Id: "ldb_fav1_stopPointId",
-  fav1Name: "ldb_fav1_name",
-  fav2Id: "ldb_fav2_stopPointId",
-  fav2Name: "ldb_fav2_name",
+const STORAGE_KEY = "ldb_boards_v2";
 
-  fav1Line: "ldb_fav1_line",
-  fav2Line: "ldb_fav2_line",
-  nearLine: "ldb_near_line"
-};
-
-// ========== STATE ==========
-let nearestStop = null;
+// ========= STATE =========
+let boards = []; // {id, fromId, fromName, toId, toName, favourite, createdAt, collapsed, lineFilter}
 let timer = null;
+let tickerTimer = null;
 let lastUpdated = null;
 
-// ========== ELEMENTS ==========
+let addDraft = {
+  from: null, // {id,name}
+  to: null
+};
+let fromSearchTimer = null;
+let toSearchTimer = null;
+
+// ========= ELEMENTS =========
 const statusText = document.getElementById("statusText");
 const pulseDot = document.getElementById("pulseDot");
-const refreshBtn = document.getElementById("refreshBtn");
-const settingsBtn = document.getElementById("settingsBtn");
-const locBtn = document.getElementById("locBtn");
-const displayMode = document.getElementById("displayMode");
 document.getElementById("refreshEvery").textContent = `${AUTO_REFRESH_SECONDS}s`;
 
-const els = {
-  fav1Name: document.getElementById("fav1Name"),
-  fav1Meta: document.getElementById("fav1Meta"),
-  fav1Table: document.getElementById("fav1Table"),
-  fav2Name: document.getElementById("fav2Name"),
-  fav2Meta: document.getElementById("fav2Meta"),
-  fav2Table: document.getElementById("fav2Table"),
-  nearName: document.getElementById("nearName"),
-  nearMeta: document.getElementById("nearMeta"),
-  nearTable: document.getElementById("nearTable"),
-};
+const boardsEl = document.getElementById("boards");
 
-const boardLineSelect = {
-  fav1: document.getElementById("fav1Line"),
-  fav2: document.getElementById("fav2Line"),
-  near: document.getElementById("nearLine"),
-};
+const addBtn = document.getElementById("addBtn");
+const nearestBtn = document.getElementById("nearestBtn");
+const tubeMapBtn = document.getElementById("tubeMapBtn");
 
-// Restore saved line selections
-boardLineSelect.fav1.value = localStorage.getItem(STORAGE_KEYS.fav1Line) || "all";
-boardLineSelect.fav2.value = localStorage.getItem(STORAGE_KEYS.fav2Line) || "all";
-boardLineSelect.near.value = localStorage.getItem(STORAGE_KEYS.nearLine) || "all";
+const addModal = document.getElementById("addModal");
+const closeModalBtn = document.getElementById("closeModalBtn");
+const cancelAddBtn = document.getElementById("cancelAddBtn");
+const doneAddBtn = document.getElementById("doneAddBtn");
 
-// Save selection + refresh
-boardLineSelect.fav1.addEventListener("change", () => {
-  localStorage.setItem(STORAGE_KEYS.fav1Line, boardLineSelect.fav1.value);
-  refreshAll(true);
-});
-boardLineSelect.fav2.addEventListener("change", () => {
-  localStorage.setItem(STORAGE_KEYS.fav2Line, boardLineSelect.fav2.value);
-  refreshAll(true);
-});
-boardLineSelect.near.addEventListener("change", () => {
-  localStorage.setItem(STORAGE_KEYS.nearLine, boardLineSelect.near.value);
-  refreshAll(true);
-});
+const fromInput = document.getElementById("fromInput");
+const toInput = document.getElementById("toInput");
+const fromResults = document.getElementById("fromResults");
+const toResults = document.getElementById("toResults");
 
-// Set buttons open station search
-for (const btn of document.querySelectorAll("button[data-pick]")) {
-  btn.addEventListener("click", () => openSearch(btn.dataset.pick));
+const tickerWrap = document.getElementById("tickerWrap");
+const tickerTrack = document.getElementById("tickerTrack");
+const tickerMeta = document.getElementById("tickerMeta");
+
+// ========= UI HELPERS =========
+function setStatus(msg){ statusText.textContent = msg; }
+function pulse(active){ pulseDot.style.background = active ? "var(--ok)" : "var(--muted)"; }
+
+function escapeHtml(s){
+  return String(s)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 }
 
-refreshBtn.addEventListener("click", () => refreshAll(true));
-settingsBtn.addEventListener("click", () => openFavouritesHelp());
-locBtn.addEventListener("click", () => setNearestFromLocation());
-displayMode.addEventListener("change", () => refreshAll(true));
-
-// ========== HELPERS ==========
-function setStatus(msg) { statusText.textContent = msg; }
-function pulse(active) { pulseDot.style.background = active ? "var(--ok)" : "var(--muted)"; }
-
-function fmtClock(dt) {
+function fmtClock(dt){
   const d = new Date(dt);
   const hh = String(d.getHours()).padStart(2,'0');
   const mm = String(d.getMinutes()).padStart(2,'0');
   return `${hh}:${mm}`;
 }
-function minutesFromNow(dt) {
+
+function minutesFromNow(dt){
   const ms = new Date(dt).getTime() - Date.now();
   const mins = Math.round(ms / 60000);
   return mins <= 0 ? "Due" : `${mins} min`;
 }
-function haversineMeters(aLat, aLon, bLat, bLon) {
+
+function haversineMeters(aLat,aLon,bLat,bLon){
   const R = 6371000;
   const toRad = x => x * Math.PI / 180;
   const dLat = toRad(bLat - aLat);
@@ -502,88 +577,239 @@ function haversineMeters(aLat, aLon, bLat, bLon) {
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
+// ========= STORAGE =========
+function loadBoards(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    const now = Date.now();
+
+    boards = (Array.isArray(arr) ? arr : [])
+      .filter(b => b && b.id && b.fromId && b.toId)
+      .filter(b => b.favourite || (now - (b.createdAt || 0)) < EXPIRY_MS);
+
+    // normalize defaults
+    boards.forEach(b => {
+      if (typeof b.collapsed !== "boolean") b.collapsed = false;
+      if (!b.lineFilter) b.lineFilter = "all";
+      if (typeof b.favourite !== "boolean") b.favourite = false;
+      if (!b.createdAt) b.createdAt = Date.now();
+    });
+
+    saveBoards();
+  }catch(e){
+    boards = [];
+  }
 }
 
-function getFavId(which) {
-  return localStorage.getItem(STORAGE_KEYS[`${which}Id`]) || null;
-}
-function getFavName(which) {
-  return localStorage.getItem(STORAGE_KEYS[`${which}Name`]) || null;
-}
-function setFav(which, stopPointId, stationName) {
-  localStorage.setItem(STORAGE_KEYS[`${which}Id`], stopPointId);
-  localStorage.setItem(STORAGE_KEYS[`${which}Name`], stationName || stopPointId);
+function saveBoards(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(boards));
 }
 
-function stationById(id) {
-  return STATIONS.find(s => s.id === id) || { name: id, id };
-}
-
-// ========== API ==========
-async function fetchArrivals(stopPointId) {
-  const url = `${API_BASE}/arrivals?stopPointId=${encodeURIComponent(stopPointId)}`;
-  const res = await fetch(url, { cache: "no-store" });
+// ========= API =========
+async function apiStationsSearch(q){
+  const res = await fetch(`${API_BASE}/stations/search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-  const payload = await res.json();
-  const data = Array.isArray(payload.arrivals) ? payload.arrivals : [];
-  data.sort((a,b) => new Date(a.expectedArrival) - new Date(b.expectedArrival));
-  return data;
+  const data = await res.json();
+  return Array.isArray(data.matches) ? data.matches : [];
 }
 
-function getLineKey(item) {
+async function apiArrivals(stopPointId){
+  const res = await fetch(`${API_BASE}/arrivals?stopPointId=${encodeURIComponent(stopPointId)}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const payload = await res.json();
+  const arr = Array.isArray(payload.arrivals) ? payload.arrivals : [];
+  arr.sort((a,b) => new Date(a.expectedArrival) - new Date(b.expectedArrival));
+  return arr;
+}
+
+async function apiLineStatus(){
+  // Optional endpoint; app will hide ticker if missing.
+  const modes = "tube,dlr,overground,elizabeth-line";
+  const res = await fetch(`${API_BASE}/lineStatus?modes=${encodeURIComponent(modes)}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return {
+    updatedAt: data.updatedAt || null,
+    lines: Array.isArray(data.lines) ? data.lines : []
+  };
+}
+
+async function apiLastJourney(fromId, toId){
+  // Optional endpoint; app will show "—" if missing.
+  const res = await fetch(`${API_BASE}/journey/last?fromId=${encodeURIComponent(fromId)}&toId=${encodeURIComponent(toId)}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return {
+    lastDepart: data.lastDepart || null,
+    lastArrive: data.lastArrive || null
+  };
+}
+
+function getLineKey(item){
   return (item.lineId || item.lineName || "unknown").toLowerCase();
 }
 
-function buildBoardLineOptions(selectEl, arrivals) {
-  if (!selectEl) return;
-
-  const current = selectEl.value || "all";
-  const seen = new Map();
-
+function buildLineOptions(selectEl, arrivals, currentValue){
+  const seen = new Map(); // key -> display
   for (const it of arrivals || []) {
     const key = getLineKey(it);
     const display = it.lineName || it.lineId || "Unknown";
     if (!seen.has(key)) seen.set(key, display);
   }
+  selectEl.innerHTML = `<option value="all">All departures</option>`;
+  [...seen.entries()].sort((a,b)=>a[1].localeCompare(b[1])).forEach(([k, d])=>{
+    const opt = document.createElement("option");
+    opt.value = k;
+    opt.textContent = d;
+    selectEl.appendChild(opt);
+  });
 
-  selectEl.innerHTML = `<option value="all">All lines</option>`;
-  [...seen.entries()]
-    .sort((a,b) => a[1].localeCompare(b[1]))
-    .forEach(([key, display]) => {
-      const opt = document.createElement("option");
-      opt.value = key;
-      opt.textContent = display;
-      selectEl.appendChild(opt);
-    });
-
-  const exists = [...selectEl.options].some(o => o.value === current);
-  selectEl.value = exists ? current : "all";
+  const exists = [...selectEl.options].some(o => o.value === currentValue);
+  selectEl.value = exists ? currentValue : "all";
 }
 
-// ========== RENDER ==========
-function renderTable(tableEl, items) {
-  tableEl.innerHTML = "";
-  if (!items || items.length === 0) {
-    tableEl.innerHTML = `<tr><td><span class="warn">No departures found.</span><div class="subline">Try “All lines” or refresh.</div></td><td class="time">—</td></tr>`;
+// ========= RENDER =========
+function render(){
+  boardsEl.innerHTML = "";
+
+  if (boards.length === 0){
+    boardsEl.innerHTML = `
+      <div class="board">
+        <div class="boardHeader">
+          <div class="left">
+            <div class="name">Add your first board</div>
+            <div class="meta"><span>Tap <strong>+</strong> to create a journey board.</span></div>
+          </div>
+          <div class="right">
+            <button class="primary smallBtn" onclick="openAddModal()">Add journey</button>
+          </div>
+        </div>
+        <div class="boardBody">
+          <table class="table">
+            <tr>
+              <td>
+                <div class="dest">Example</div>
+                <div class="subline">Woolwich → Green Park · filter by line · favourite boards persist</div>
+              </td>
+              <td class="time">—</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    `;
     return;
   }
 
-  const mode = displayMode.value; // countdown | clock
+  for (const b of boards){
+    const card = document.createElement("section");
+    card.className = `board ${b.collapsed ? "collapsed" : ""}`;
+    card.dataset.id = b.id;
 
-  for (const it of items.slice(0, MAX_ROWS)) {
+    const title = `${b.fromName} to ${b.toName}`;
+
+    card.innerHTML = `
+      <div class="boardHeader">
+        <div class="left collapseToggle" title="Tap to collapse/expand">
+          <div class="name">${escapeHtml(title)}</div>
+          <div class="meta">
+            <span>${b.favourite ? "<span class='ok'>★ Favourite</span>" : "Not favourited (expires in 24h)"}</span>
+            <span id="meta-${b.id}">—</span>
+          </div>
+        </div>
+        <div class="right">
+          <select class="lineSelect" id="line-${b.id}">
+            <option value="all">All departures</option>
+          </select>
+          <div class="smallRow">
+            <button class="smallBtn" id="fav-${b.id}" title="Add/remove favourite">${b.favourite ? "★" : "☆"}</button>
+            <button class="smallBtn ghostBtn" id="del-${b.id}" title="Delete">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="boardBody">
+        <table class="table" id="table-${b.id}">
+          <tr><td><span class="warn">Loading…</span><div class="subline">Fetching departures.</div></td><td class="time">—</td></tr>
+        </table>
+      </div>
+
+      <div class="boardFooter" id="foot-${b.id}">
+        <span class="badge">Last train today: <strong id="last-${b.id}">—</strong></span>
+        <span class="badge">Current frequency: <strong id="freq-${b.id}">—</strong></span>
+      </div>
+    `;
+
+    // Collapse toggle
+    card.querySelector(".collapseToggle").addEventListener("click", () => {
+      b.collapsed = !b.collapsed;
+      saveBoards();
+      render();
+    });
+
+    // Favourite toggle
+    card.querySelector(`#fav-${CSS.escape(b.id)}`).addEventListener("click", (e) => {
+      e.stopPropagation();
+      b.favourite = !b.favourite;
+      // if they favourite it, refresh createdAt to “now” so it never expires by mistake
+      if (b.favourite) b.createdAt = Date.now();
+      saveBoards();
+      render();
+      refreshBoard(b, true);
+    });
+
+    // Delete
+    card.querySelector(`#del-${CSS.escape(b.id)}`).addEventListener("click", (e) => {
+      e.stopPropagation();
+      boards = boards.filter(x => x.id !== b.id);
+      saveBoards();
+      render();
+    });
+
+    // Line filter change
+    card.querySelector(`#line-${CSS.escape(b.id)}`).addEventListener("change", (e) => {
+      b.lineFilter = e.target.value;
+      saveBoards();
+      refreshBoard(b, true);
+    });
+
+    boardsEl.appendChild(card);
+  }
+}
+
+// ========= BOARD DATA POPULATION =========
+function renderDeparturesTable(tableEl, items, toName, lineFilterKey){
+  tableEl.innerHTML = "";
+
+  if (!items || items.length === 0){
+    tableEl.innerHTML = `<tr><td><span class="warn">No departures found.</span><div class="subline">Try “All departures” or refresh.</div></td><td class="time">—</td></tr>`;
+    return;
+  }
+
+  // Filter to the chosen destination (best-effort)
+  const to = (toName || "").toLowerCase();
+  let filtered = items.filter(it => {
+    const dest = (it.destinationName || it.towards || "").toLowerCase();
+    return to.length < 2 ? true : dest.includes(to);
+  });
+
+  if (lineFilterKey && lineFilterKey !== "all"){
+    filtered = filtered.filter(it => getLineKey(it) === lineFilterKey);
+  }
+
+  filtered = filtered.slice(0, MAX_DEPARTURES);
+
+  if (filtered.length === 0){
+    tableEl.innerHTML = `<tr><td><span class="warn">No matching departures.</span><div class="subline">Destination filter may be strict — try “All departures”.</div></td><td class="time">—</td></tr>`;
+    return;
+  }
+
+  for (const it of filtered){
     const dest = it.destinationName || it.towards || "Unknown destination";
     const lineName = it.lineName || it.lineId || "Unknown line";
-    const platform = it.platformName ? `Plat: ${it.platformName}` : null;
+    const platform = it.platformName ? `Platform ${it.platformName.replace(/^Platform\s+/i,"")}` : null;
 
-    const timeText = (mode === "clock") ? fmtClock(it.expectedArrival) : minutesFromNow(it.expectedArrival);
+    const depTime = minutesFromNow(it.expectedArrival);
     const subBits = [lineName];
     if (platform) subBits.push(platform);
 
@@ -593,146 +819,75 @@ function renderTable(tableEl, items) {
         <div class="dest">${escapeHtml(dest)}</div>
         <div class="subline">${subBits.map(escapeHtml).join(" · ")}</div>
       </td>
-      <td class="time">${escapeHtml(timeText)}</td>
+      <td class="time">${escapeHtml(depTime)}</td>
     `;
     tableEl.appendChild(tr);
   }
 }
 
-// ========== STATION SEARCH MODAL ==========
-let activeFavouriteSlot = null;
-let searchTimer = null;
+function estimateFrequency(arrivals, toName){
+  // Best-effort: take first 3 departures to the destination and compute headway
+  const to = (toName || "").toLowerCase();
+  const matches = arrivals.filter(it => ((it.destinationName || it.towards || "").toLowerCase().includes(to)))
+                          .slice(0, 3);
+  if (matches.length < 2) return null;
 
-function openSearch(slot) {
-  activeFavouriteSlot = slot;
-  document.getElementById("searchModal").style.display = "block";
-  document.getElementById("stationSearchInput").value = "";
-  document.getElementById("searchResults").innerHTML = "";
-  document.getElementById("stationSearchInput").focus();
-}
-
-function closeSearch() {
-  document.getElementById("searchModal").style.display = "none";
-  activeFavouriteSlot = null;
-}
-
-function debouncedStationSearch(q) {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => searchStations(q), 250);
-}
-
-async function searchStations(q) {
-  q = (q || "").trim();
-  if (q.length < 2) {
-    document.getElementById("searchResults").innerHTML = "";
-    return;
+  const times = matches.map(x => new Date(x.expectedArrival).getTime()).sort((a,b)=>a-b);
+  const diffs = [];
+  for (let i=1;i<times.length;i++){
+    diffs.push((times[i]-times[i-1]) / 60000);
   }
-
-  const res = await fetch(`${API_BASE}/stations/search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
-  if (!res.ok) {
-    document.getElementById("searchResults").innerHTML = `<div class="warn">Search failed (HTTP ${res.status})</div>`;
-    return;
-  }
-
-  const data = await res.json();
-  const results = Array.isArray(data.matches) ? data.matches : [];
-
-  if (results.length === 0) {
-    document.getElementById("searchResults").innerHTML = `<div class="hint">No results.</div>`;
-    return;
-  }
-
-  document.getElementById("searchResults").innerHTML = results.slice(0, 12).map(r => `
-    <div class="resultItem" onclick="selectStation('${r.id}','${String(r.name).replace(/'/g, "\\'")}')">
-      <strong>${escapeHtml(r.name)}</strong><br>
-      <small>${escapeHtml((r.modes || []).join(", "))}</small>
-    </div>
-  `).join("");
+  const avg = diffs.reduce((a,b)=>a+b,0) / diffs.length;
+  if (!isFinite(avg) || avg <= 0) return null;
+  const rounded = Math.max(1, Math.round(avg));
+  return `1 train every ${rounded} min${rounded===1?"":"s"}`;
 }
 
-function selectStation(id, name) {
-  if (!activeFavouriteSlot) return;
-  setFav(activeFavouriteSlot, id, name);
-  closeSearch();
-  refreshAll(true);
-}
+async function refreshBoard(b, manual=false){
+  const metaEl = document.getElementById(`meta-${b.id}`);
+  const tableEl = document.getElementById(`table-${b.id}`);
+  const lineSel = document.getElementById(`line-${b.id}`);
+  const lastEl = document.getElementById(`last-${b.id}`);
+  const freqEl = document.getElementById(`freq-${b.id}`);
 
-function openFavouritesHelp() {
-  alert("Tap Set on Favourite #1 or #2, then search and select a station.\n\nLine filters are per-board on the right.");
-}
+  if (!tableEl || !lineSel) return;
 
-// ========== LOCATION ==========
-function setNearestFromLocation() {
-  if (!navigator.geolocation) {
-    els.nearMeta.textContent = "Geolocation not supported";
-    return;
-  }
-  setStatus("Getting location…");
-  pulse(true);
+  try{
+    const arrivals = await apiArrivals(b.fromId);
 
-  navigator.geolocation.getCurrentPosition(
-    async (pos) => {
-      const { latitude, longitude } = pos.coords;
-      let best = null;
-      let bestD = Infinity;
+    // Populate per-board line dropdown based on seen lines at origin
+    buildLineOptions(lineSel, arrivals, b.lineFilter);
 
-      for (const s of STATIONS) {
-        const d = haversineMeters(latitude, longitude, s.lat, s.lon);
-        if (d < bestD) { bestD = d; best = s; }
+    renderDeparturesTable(tableEl, arrivals, b.toName, b.lineFilter);
+
+    // Frequency (best-effort)
+    const freq = estimateFrequency(arrivals, b.toName);
+    freqEl.textContent = freq || "—";
+
+    // Last train today (optional endpoint)
+    // If endpoint isn't implemented, keep "—" silently.
+    try{
+      const last = await apiLastJourney(b.fromId, b.toId);
+      if (last.lastDepart){
+        lastEl.textContent = fmtClock(last.lastDepart);
+      }else{
+        lastEl.textContent = "—";
       }
+    }catch(_){
+      // ignore
+    }
 
-      nearestStop = best;
-      els.nearName.textContent = best.name;
-      els.nearMeta.textContent = `~${Math.round(bestD)}m away`;
-      await refreshAll(true);
-    },
-    (err) => {
-      els.nearMeta.textContent = `Location denied (${err.code})`;
-      setStatus("Idle");
-      pulse(false);
-    },
-    { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
-  );
+    if (metaEl){
+      metaEl.textContent = `Updated ${fmtClock(new Date())}`;
+    }
+  }catch(e){
+    if (metaEl) metaEl.textContent = "Update failed";
+    tableEl.innerHTML = `<tr><td><span class="warn">Couldn’t load departures.</span><div class="subline">${escapeHtml(e.message || e)}</div></td><td class="time">—</td></tr>`;
+  }
 }
 
-// ========== MAIN REFRESH ==========
-async function refreshAll(manual=false) {
-  const fav1 = getFavId("fav1");
-  const fav2 = getFavId("fav2");
-  const fav1Name = getFavName("fav1");
-  const fav2Name = getFavName("fav2");
-
-  // Headers + empty states
-  if (fav1) {
-    els.fav1Name.textContent = fav1Name || "Favourite #1";
-    els.fav1Meta.textContent = lastUpdated ? `Last updated ${fmtClock(lastUpdated)}` : "—";
-  } else {
-    els.fav1Name.textContent = "Favourite #1";
-    els.fav1Meta.textContent = "Not set";
-    els.fav1Table.innerHTML = `<tr><td>Tap <strong>Set</strong> to choose a station.</td><td class="time">—</td></tr>`;
-  }
-
-  if (fav2) {
-    els.fav2Name.textContent = fav2Name || "Favourite #2";
-    els.fav2Meta.textContent = lastUpdated ? `Last updated ${fmtClock(lastUpdated)}` : "—";
-  } else {
-    els.fav2Name.textContent = "Favourite #2";
-    els.fav2Meta.textContent = "Not set";
-    els.fav2Table.innerHTML = `<tr><td>Tap <strong>Set</strong> to choose a station.</td><td class="time">—</td></tr>`;
-  }
-
-  if (!nearestStop) {
-    els.nearName.textContent = "Nearest station";
-    els.nearTable.innerHTML = `<tr><td>Tap <strong>Use location</strong> to set nearest station.</td><td class="time">—</td></tr>`;
-  }
-
-  const ids = [
-    { key: "fav1", id: fav1, table: els.fav1Table },
-    { key: "fav2", id: fav2, table: els.fav2Table },
-    { key: "near", id: nearestStop?.id || null, table: els.nearTable },
-  ].filter(x => x.id);
-
-  if (ids.length === 0) {
+async function refreshAll(manual=false){
+  if (boards.length === 0){
     setStatus("Idle");
     pulse(false);
     return;
@@ -741,52 +896,241 @@ async function refreshAll(manual=false) {
   setStatus(manual ? "Refreshing…" : "Auto-refreshing…");
   pulse(true);
 
-  try {
-    const results = await Promise.all(ids.map(x => fetchArrivals(x.id)));
-
-    for (let i = 0; i < ids.length; i++) {
-      const boardKey = ids[i].key;
-      const arrivals = results[i];
-
-      // Populate per-board line dropdown
-      buildBoardLineOptions(boardLineSelect[boardKey], arrivals);
-
-      // Apply per-board selection
-      const selected = boardLineSelect[boardKey]?.value || "all";
-      let items = arrivals;
-      if (selected !== "all") {
-        items = items.filter(it => getLineKey(it) === selected);
-      }
-
-      renderTable(ids[i].table, items);
+  try{
+    for (const b of boards){
+      // Skip collapsed boards to reduce calls
+      if (b.collapsed) continue;
+      await refreshBoard(b, manual);
     }
-
     lastUpdated = new Date();
-    // refresh header meta now that we have lastUpdated
-    if (fav1) els.fav1Meta.textContent = `Last updated ${fmtClock(lastUpdated)}`;
-    if (fav2) els.fav2Meta.textContent = `Last updated ${fmtClock(lastUpdated)}`;
-    if (nearestStop) els.nearMeta.textContent = els.nearMeta.textContent || `Last updated ${fmtClock(lastUpdated)}`;
-
-    setStatus(`Updated ${fmtClock(lastUpdated)} · mode: ${displayMode.value}`);
-  } catch (e) {
-    setStatus("Update failed");
-    for (const x of ids) {
-      x.table.innerHTML = `<tr><td><span class="warn">Couldn’t load departures.</span><div class="subline">${escapeHtml(e.message || e)}</div></td><td class="time">—</td></tr>`;
-    }
-  } finally {
+    setStatus(`Updated ${fmtClock(lastUpdated)}`);
+  }finally{
     pulse(false);
   }
 }
 
-// Start auto refresh
-function startTimer() {
-  if (timer) clearInterval(timer);
-  timer = setInterval(() => refreshAll(false), AUTO_REFRESH_SECONDS * 1000);
+// ========= LINE STATUS TICKER =========
+function renderTicker(lines, updatedAt){
+  if (!lines || lines.length === 0){
+    tickerWrap.style.display = "none";
+    return;
+  }
+
+  tickerWrap.style.display = "";
+  tickerMeta.textContent = updatedAt ? `Updated ${fmtClock(updatedAt)}` : "Updated recently";
+
+  const itemsHtml = lines.map(l => {
+    const s = String(l.status || "").toLowerCase();
+    const good = s.includes("good") || s.includes("running") || s.includes("service");
+    const cls = good ? "statusGood" : "statusBad";
+    return `<span class="tickerItem">${escapeHtml(l.name)}: <span class="${cls}">${escapeHtml(l.status || "—")}</span></span>`;
+  }).join("");
+
+  // Duplicate content so it loops seamlessly
+  tickerTrack.innerHTML = itemsHtml + itemsHtml;
 }
 
-// Initial paint
+async function refreshTicker(){
+  try{
+    const { updatedAt, lines } = await apiLineStatus();
+    renderTicker(lines, updatedAt ? new Date(updatedAt) : null);
+  }catch(_){
+    // If endpoint doesn't exist yet, just hide it.
+    tickerWrap.style.display = "none";
+  }
+}
+
+// ========= ADD JOURNEY FLOW =========
+function openAddModal(){
+  addDraft = { from: null, to: null };
+  fromInput.value = "";
+  toInput.value = "";
+  fromResults.style.display = "none";
+  toResults.style.display = "none";
+  fromResults.innerHTML = "";
+  toResults.innerHTML = "";
+  doneAddBtn.disabled = true;
+  addModal.style.display = "block";
+  fromInput.focus();
+}
+
+function closeAddModal(){
+  addModal.style.display = "none";
+}
+
+function updateDoneButton(){
+  doneAddBtn.disabled = !(addDraft.from && addDraft.to);
+}
+
+function renderSearchResults(container, results, onPick){
+  if (!results || results.length === 0){
+    container.style.display = "none";
+    container.innerHTML = "";
+    return;
+  }
+  container.style.display = "";
+  container.innerHTML = results.slice(0, 10).map(r => `
+    <div class="resultItem" data-id="${escapeHtml(r.id)}" data-name="${escapeHtml(r.name)}">
+      <strong>${escapeHtml(r.name)}</strong><br>
+      <small>${escapeHtml((r.modes || []).join(", "))}</small>
+    </div>
+  `).join("");
+
+  container.querySelectorAll(".resultItem").forEach(el => {
+    el.addEventListener("click", () => {
+      onPick({ id: el.getAttribute("data-id"), name: el.getAttribute("data-name") });
+    });
+  });
+}
+
+function debounceSearch(which, q){
+  const run = async () => {
+    q = (q || "").trim();
+    if (q.length < 2){
+      if (which === "from"){
+        renderSearchResults(fromResults, [], ()=>{});
+      }else{
+        renderSearchResults(toResults, [], ()=>{});
+      }
+      return;
+    }
+    try{
+      const matches = await apiStationsSearch(q);
+      if (which === "from"){
+        renderSearchResults(fromResults, matches, (pick) => {
+          addDraft.from = pick;
+          fromInput.value = pick.name;
+          fromResults.style.display = "none";
+          updateDoneButton();
+        });
+      }else{
+        renderSearchResults(toResults, matches, (pick) => {
+          addDraft.to = pick;
+          toInput.value = pick.name;
+          toResults.style.display = "none";
+          updateDoneButton();
+        });
+      }
+    }catch(e){
+      // ignore; keep UI quiet
+    }
+  };
+
+  if (which === "from"){
+    clearTimeout(fromSearchTimer);
+    fromSearchTimer = setTimeout(run, 250);
+  }else{
+    clearTimeout(toSearchTimer);
+    toSearchTimer = setTimeout(run, 250);
+  }
+}
+
+function addBoard(){
+  if (!addDraft.from || !addDraft.to) return;
+
+  const id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
+
+  boards.unshift({
+    id,
+    fromId: addDraft.from.id,
+    fromName: addDraft.from.name,
+    toId: addDraft.to.id,
+    toName: addDraft.to.name,
+    favourite: false,
+    createdAt: Date.now(),
+    collapsed: false,
+    lineFilter: "all"
+  });
+
+  saveBoards();
+  closeAddModal();
+  render();
+  refreshAll(true);
+}
+
+// ========= NEAREST STATION =========
+function setNearestFromLocation(){
+  if (!navigator.geolocation){
+    alert("Geolocation not supported in this browser.");
+    return;
+  }
+  setStatus("Getting location…");
+  pulse(true);
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const { latitude, longitude } = pos.coords;
+
+      let best = null;
+      let bestD = Infinity;
+      for (const s of STATIONS_FOR_NEAREST){
+        const d = haversineMeters(latitude, longitude, s.lat, s.lon);
+        if (d < bestD){ bestD = d; best = s; }
+      }
+      if (!best){
+        alert("Couldn’t determine nearest station.");
+        return;
+      }
+
+      // Add a “Nearest station -> destination” board requires a destination.
+      // For now, we add a quick board showing “All departures” from nearest,
+      // by setting destination to nearest itself (so the dest filter is loose).
+      // You can change this behaviour later to prompt for destination.
+      const id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
+      boards.unshift({
+        id,
+        fromId: best.id,
+        fromName: best.name,
+        toId: best.id,
+        toName: "", // empty => no destination filtering
+        favourite: false,
+        createdAt: Date.now(),
+        collapsed: false,
+        lineFilter: "all"
+      });
+
+      saveBoards();
+      render();
+      await refreshAll(true);
+    },
+    (err) => {
+      alert("Location permission denied.");
+    },
+    { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+  ).finally?.(()=>{ pulse(false); });
+}
+
+// ========= EVENTS =========
+addBtn.addEventListener("click", openAddModal);
+closeModalBtn.addEventListener("click", closeAddModal);
+cancelAddBtn.addEventListener("click", closeAddModal);
+doneAddBtn.addEventListener("click", addBoard);
+
+fromInput.addEventListener("input", (e)=> debounceSearch("from", e.target.value));
+toInput.addEventListener("input", (e)=> debounceSearch("to", e.target.value));
+
+nearestBtn.addEventListener("click", setNearestFromLocation);
+tubeMapBtn.addEventListener("click", () => window.open(TUBE_MAP_URL, "_blank", "noopener,noreferrer"));
+
+addModal.addEventListener("click", (e) => {
+  // click outside modal closes
+  if (e.target === addModal) closeAddModal();
+});
+
+// ========= TIMERS =========
+function startTimers(){
+  if (timer) clearInterval(timer);
+  timer = setInterval(() => refreshAll(false), AUTO_REFRESH_SECONDS * 1000);
+
+  if (tickerTimer) clearInterval(tickerTimer);
+  tickerTimer = setInterval(() => refreshTicker(), LINE_STATUS_REFRESH_SECONDS * 1000);
+}
+
+// ========= INIT =========
+loadBoards();
+render();
+refreshTicker();
 refreshAll(false);
-startTimer();
+startTimers();
 </script>
 
 </body>
